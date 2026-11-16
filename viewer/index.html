@@ -74,10 +74,10 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
 </style>
 
 <div id="stage"></div>
-<img id="overlay" alt="Foto original tirada da janela, com pessoas desfocadas" hidden src="fotos/janela.jpg">
+<img id="overlay" alt="Foto original tirada da janela, com pessoas desfocadas" hidden src="data:image/jpeg;base64,fotos/janela.jpg">
 
 <div class="bar">
-  <div class="brand"><h1>Chácara · maquete v0</h1><span class="status">aguardando aprovação</span></div>
+  <div class="brand"><h1>Chácara · maquete v5</h1><span class="status">aguardando aprovação</span></div>
   <div class="tools" role="toolbar" aria-label="Modos de navegação">
     <button id="mOrbit" aria-pressed="true">Órbita</button>
     <button id="mWalk" aria-pressed="false">Andar</button>
@@ -163,7 +163,7 @@ const META = {
     campos:{largura:'Largura', comprimento:'Comprimento', altura:'Altura'} },
   rampa: { nome:'Rampa dos carros e calçada', conf:'baixa', nota:'Desce da rua pela frente da casa até o platô. Portão grande de madeira no alto, junto à rua. Inclinação estimada.',
     campos:{largura:'Largura', comprimento:'Comprimento', desnivel:'Desnível'} },
-  salaoObra: { nome:'Salão em construção (só fundação)', conf:'baixa', nota:'10 × 12 m informados, na área de baixo. Posição tirada do mapa.',
+  salaoObra: { nome:'Salão inferior (em construção)', conf:'baixa', nota:'10 × 12 m informados, na área de baixo. Posição tirada do mapa.',
     campos:{largura:'Largura', comprimento:'Comprimento', cx:'Posição lado (X)', cz:'Posição frente (Z)'} },
   camera: { nome:'Câmera da foto', conf:'media', nota:'Altura e inclinação calibradas pela picape, carro e pessoas.',
     campos:{altura:'Altura sobre o gramado', inclinacao:'Inclinação (graus)'} }
@@ -181,7 +181,13 @@ const LEFT_EDGE = [[-8.6,-40],[-8.6,-14],[-8.4,0],[-7.2,5],[-5.2,7.9],[-3.8,8.7]
 const TOE = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,50]];
 // Rio: divisa do fundo (paralela à rua) e divisa de cima, com curva de ~90° (do mapa)
 const RIVER = [[-24,60],[-22.1,37.2],[-34,8],[-43.9,-15.5],[-30,-24],[-12,-32],[6,-36.2],[20,-38]];
-const LAKE = { x:-17, z:16, r:3.2, tipX:-10.5, tipZ:12.5 };
+const LAKE = { x:-19, z:17, r:3.4, tipX:-13.8, tipZ:14.2 };
+const PRACINHA = { x:-15, z:21.5, w:5, d:4.5 };
+const PEDRA_PLATO = { x:-13.4, z:11.6 };
+const ARVORE = { x:-15.6, z:12.6, tronco:0.9, altura:18, copa:6.5 };
+const PEDRA_IMENSA = { x:-11.8, z:25 };
+const ARAUCARIAS = [ {x:11.6,z:30,h:22,dap:0.7,copa:10}, {x:14.4,z:27.5,h:24,dap:0.8,copa:11}, {x:15.6,z:23,h:21,dap:0.65,copa:9}, {x:17.2,z:31.5,h:20,dap:0.6,copa:9}, {x:9.8,z:34,h:19,dap:0.55,copa:8} ];
+const ESTAC = { divisaZ:46, largura:7 };
 const BANHADO = { x:-17, z:4, w:8, d:6 };
 
 /* ---------- utilidades ---------- */
@@ -340,7 +346,7 @@ function build(){
   for (const sx of [-1,1]){ // porta de cada banheiro na lateral externa
     const d=new THREE.Mesh(new THREE.BoxGeometry(0.04,2.1,0.8),M.dark); d.position.set(sx*(SW/2-0.03),top+1.05,bz); gg.add(d);
   }
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(SW+0.6,0.16,SD+0.8),M.roof); roof.position.set(0,top+postH+0.08,0.1); roof.rotation.x=-0.035; gg.add(roof);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(SW+0.6,0.14,SD+1.0),M.roof); roof.position.set(0,top+postH+0.1,0.2); roof.rotation.x=0.07; gg.add(roof);
   // anexo metálico à direita (visto na foto)
   const ax=SW/2+1.6;
   const ar=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.08,SD-bfd),M.roof); ar.position.set(ax,top+2.4,bfd/2); ar.rotation.z=-0.08; gg.add(ar);
@@ -368,9 +374,32 @@ function build(){
     const road=seg3(5,0.12,A2[0],H(...A2)+0.03,A2[1],B2[0],H(...B2)+0.03,B2[1],M.road); road.receiveShadow=true; layers.estruturas.add(road);
   }
   addLabel('Rua (fora da cerca)', 16.5, H(16.5,-8)+0.8, -8);
-  // pedra grande na crista do barranco
-  const rk=new THREE.Mesh(new THREE.DodecahedronGeometry(1.7,1),M.stone); rk.scale.set(1.3,0.8,1.1); rk.position.copy(v(-2.8,H(-2.8,20.5)-0.1,20.5)); layers.estruturas.add(shadowy(rk));
-  addLabel('Pedra grande', -2.8, H(-2.8,20.5)+2.2, 20.5);
+  // pedra imensa no pé do barranco, onde termina a pracinha
+  { const p=PEDRA_IMENSA, y=H(p.x,p.z); const rk=new THREE.Mesh(new THREE.DodecahedronGeometry(3,1),M.stone); rk.scale.set(1.0,1.6,1.15); rk.position.copy(v(p.x,y+2.6,p.z)); layers.estruturas.add(shadowy(rk));
+    addLabel('Pedra imensa', p.x, y+8, p.z); }
+  // pergolado na beira do barranco, olhando para a pracinha
+  { const px=-1.6, pz=15.2, y=H(px,pz), pg=new THREE.Group(); pg.position.copy(v(px,y,pz)); pg.rotation.y=0.12;
+    { const fl=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.2,4.0),M.floor); fl.position.y=0.05; pg.add(fl); }
+    const wall=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.6,4.0),M.block); wall.position.set(-2.3,0.3,0); pg.add(wall);
+    for(const sx of [-1,1]) for(const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.14,2.7,0.14),M.dark); p.position.set(sx*1.9,1.35,sz*1.7); pg.add(p); }
+    for(let i=0;i<8;i++){ const r=new THREE.Mesh(new THREE.BoxGeometry(4.8,0.1,0.12),M.wood); r.position.set(0,2.75,-1.9+i*0.54); pg.add(r); }
+    for(const sz of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.16,4.4),M.wood); r.position.set(sz*1.9,2.66,0); pg.add(r); }
+    layers.estruturas.add(shadowy(pg)); addLabel('Pergolado', px, y+3.6, pz); }
+  // estacionamento: faixa de cima, atrás do pergolado, na beira do barranco até a divisa com o vizinho
+  { const edgeX=(Z)=>{ for(let i=0;i<LEFT_EDGE.length-1;i++){ const [ax,az]=LEFT_EDGE[i],[bx,bz]=LEFT_EDGE[i+1]; if(Z>=az&&Z<=bz) return ax+(bx-ax)*(Z-az)/(bz-az); } return LEFT_EDGE.at(-1)[0]; };
+    const z0=17.8, z1=ESTAC.divisaZ, larg=ESTAC.largura, n=Math.ceil((z1-z0)/0.7), pos=[], idx=[];
+    for(let i=0;i<=n;i++){ const Z=z0+(z1-z0)*i/n, xa=edgeX(Z)+0.6, xb=xa+larg; for(const X of [xa,xb]) pos.push(X,H(X,Z)+0.05,-Z); if(i<n){ const k=i*2; idx.push(k,k+2,k+1, k+1,k+2,k+3); } }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+    const pk=new THREE.Mesh(g,M.road); pk.receiveShadow=true; layers.estruturas.add(pk);
+    // vagas alinhadas na beira do barranco (carro de frente para o barranco)
+    for(let Z=z0+1.5; Z<z1-1; Z+=2.6){ if(Z>P.galpao.frenteZ-1 && Z<P.galpao.frenteZ+P.galpao.profundidade+P.galpao.fundoBanheiros+1 && edgeX(Z)+5.6>P.galpao.cx-P.galpao.largura/2) continue;
+      const xa=edgeX(Z)+0.6; layers.estruturas.add(seg3(0.08,0.02,xa,H(xa,Z)+0.08,Z,xa+5,H(xa+5,Z)+0.08,Z,M.dark)); }
+    const zm=(z0+z1)/2+4; addLabel('Estacionamento (visitas, na beira do barranco)', edgeX(zm)+larg/2, H(edgeX(zm)+3,zm)+1.2, zm);
+    // divisa com o vizinho (posição estimada)
+    const xd0=edgeX(z1)-1, xd1=TOE.at(-1)[0]-8; layers.estruturas.add(shadowy(seg3(0.08,1.4,xd0,H(xd0,z1)+0.7,z1,xd1,H(xd1,z1)+0.7,z1,M.dark)));
+    addLabel('Divisa com o vizinho (estimada)', (xd0+xd1)/2, H((xd0+xd1)/2,z1)+2, z1);
+    const shed=box(3,2.4,2.5,M.house,edgeX(z1-3)+larg-1,H(edgeX(z1-3)+larg-1,z1-3)+1.2,z1-3); layers.estruturas.add(shadowy(shed));
+    addLabel('Depósito', edgeX(z1-3)+larg-1, H(edgeX(z1-3)+larg-1,z1-3)+3.2, z1-3); }
   // deck, rampa, portão, calçada
   { const C=P.casa, k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3, xr=xl+C.largura;
     const Rr=P.rampa, rx=xr+1.4+Rr.largura/2, z0=0.5, z1=-Rr.comprimento+0.5;
@@ -387,7 +416,7 @@ function build(){
   // área de baixo: salão em obra (fundação), laguinho, banhado, rio, rampa de pedestres
   { const S=P.salaoObra, y=H(S.cx,S.cz);
     const slab=box(S.largura,0.5,S.comprimento,M.block,S.cx,y+0.15,S.cz); layers.estruturas.add(shadowy(slab));
-    addLabel(`Salão em construção ${fmt(S.largura*P.escala)} × ${fmt(S.comprimento*P.escala)} m`, S.cx, y+1.6, S.cz);
+    addLabel(`Salão inferior (em construção) ${fmt(S.largura*P.escala)} × ${fmt(S.comprimento*P.escala)} m`, S.cx, y+1.6, S.cz);
     const ly=-P.terreno.quedaEsquerda-0.35, shape=new THREE.Shape(), N=60;
     for(let i=0;i<N;i++){
       const a=i/N*Math.PI*2; let p=null;
@@ -395,36 +424,74 @@ function build(){
       if(p){ i ? shape.lineTo(p[0],p[1]) : shape.moveTo(p[0],p[1]); }
     }
     const lake=new THREE.Mesh(new THREE.ShapeGeometry(shape),M.water); lake.rotation.x=-Math.PI/2; lake.position.y=ly; layers.estruturas.add(lake);
-    addLabel('Laguinho de peixes', LAKE.x, ly+1.5, LAKE.z);
+    addLabel('Laguinho de peixes (dois tanques)', LAKE.x, ly+1.5, LAKE.z);
     const B=BANHADO, ban=box(B.w,0.02,B.d,M.marsh,B.x,H(B.x,B.z)+0.05,B.z); layers.estruturas.add(ban);
     addLabel('Banhado (futuro tanque)', B.x, H(B.x,B.z)+1.2, B.z);
     const wy=-P.terreno.quedaEsquerda-0.45;
     for(let i=0;i<RIVER.length-1;i++){ const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];
       layers.estruturas.add(seg3(2.6,0.02,ax,wy,az,bx,wy,bz,M.water)); }
     addLabel('Rio (divisa)', -33, wy+1.2, 8);
-    const path=[[-4.5,8.6],[-6.5,10.5],[-8.5,12.6],[-10.5,14.6],[-12.5,16.5]];
+    const path=[[-9.6,0.5],[-10.4,4],[-11.0,8],[-11.6,12],[-12.4,16],[-13.4,19.6]];
     for(let i=0;i<path.length-1;i++){ const [ax,az]=path[i],[bx,bz]=path[i+1];
-      layers.estruturas.add(shadowy(seg3(1.2,0.12,ax,H(ax,az)+0.08,az,bx,H(bx,bz)+0.08,bz,M.block))); }
-    addLabel('Rampa de pedestres', -8.5, H(-8.5,12.6)+1.4, 12.6);
+      layers.estruturas.add(shadowy(seg3(1.5,0.14,ax,H(ax,az)+0.1,az,bx,H(bx,bz)+0.1,bz,M.block))); }
+    addLabel('Rampa de pedestres', -10.4, H(-10.4,4)+1.4, 4);
+    // pracinha de cascalho ao pé da rampa, ao lado do laguinho, terminando na pedra imensa
+    { const p=PRACINHA, y=H(p.x,p.z); const pc=box(p.w,0.08,p.d,M.floor,p.x,y+0.05,p.z,0.25); pc.receiveShadow=true; layers.estruturas.add(pc);
+      addLabel('Pracinha', p.x, y+1.2, p.z); }
+    // pedra-platô, ponte de ferro saindo da rampa e escadinha até o laguinho
+    { const q=PEDRA_PLATO, y=H(q.x,q.z); const rk=new THREE.Mesh(new THREE.SphereGeometry(2.2,20,10),M.stone); rk.scale.set(1.3,0.32,0.9); rk.position.copy(v(q.x,y+0.2,q.z)); layers.estruturas.add(shadowy(rk));
+      addLabel('Pedra-platô', q.x, y+1.4, q.z);
+      const [rx,rz]=[-11.3,10.0], ry=H(rx,rz)+0.25, by=y+0.85, bx=q.x+1.1, bz=q.z-0.6;
+      layers.estruturas.add(shadowy(seg3(1.0,0.08,rx,ry,rz,bx,by,bz,M.dark)));
+      for(const o of [-0.5,0.5]){ const dx=-(bz-rz), dz=(bx-rx), L=Math.hypot(dx,dz); layers.estruturas.add(seg3(0.04,0.04,rx+dx/L*o,ry+0.9,rz+dz/L*o,bx+dx/L*o,by+0.9,bz+dz/L*o,M.dark)); }
+      addLabel('Ponte de ferro', (rx+bx)/2, by+1.4, (rz+bz)/2);
+      const s0=[q.x-1.2,q.z+1.4], s1=[-15.2,15.2], n=6, y0=by-0.1, y1=-P.terreno.quedaEsquerda+0.05;
+      for(let i=0;i<n;i++){ const t=(i+0.5)/n, sx=s0[0]+(s1[0]-s0[0])*t, sz=s0[1]+(s1[1]-s0[1])*t, sy=y0+(y1-y0)*t;
+        layers.estruturas.add(shadowy(box(1.0,0.2,0.45,M.block,sx,sy,sz,Math.atan2(s1[1]-s0[1],s1[0]-s0[0])+Math.PI/2))); }
+      addLabel('Escadinha', s1[0], y1+1.2, s1[1]);
+    }
+    // árvore grande entre a pedra-platô e a escadinha (medidas a confirmar)
+    { const A=ARVORE, y=H(A.x,A.z), g=new THREE.Group(); g.position.copy(v(A.x,y,A.z));
+      const tr=new THREE.Mesh(new THREE.CylinderGeometry(A.tronco*0.35,A.tronco*0.6,A.altura*0.65,14),M.trunk); tr.position.y=A.altura*0.325; g.add(tr);
+      for(let i=0;i<10;i++){ const a=i/10*Math.PI*2, r=A.tronco*0.55; const rt=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.07,A.altura*0.42,5),M.trunk); rt.position.set(Math.cos(a)*r,A.altura*0.21,Math.sin(a)*r); g.add(rt); }
+      for(const [ox,oy,oz,rr] of [[0,0.78,0,1],[0.35,0.7,0.2,0.75],[-0.35,0.72,-0.15,0.8],[0.1,0.9,-0.3,0.7]]){
+        const c=new THREE.Mesh(new THREE.IcosahedronGeometry(A.copa*rr,1),M.tree); c.scale.y=0.55; c.position.set(ox*A.copa,A.altura*oy,oz*A.copa); g.add(c); }
+      layers.vegetacao.add(shadowy(g)); addLabel(`Árvore grande (~${fmt(A.altura)} m, a confirmar)`, A.x, y+A.altura+1.5, A.z); }
+    // muro de blocos em volta do laguinho e divisória com furos
+    { const ly=-P.terreno.quedaEsquerda-0.35, N=40, pts=[];
+      for(let i=0;i<N;i++){ const a=i/N*Math.PI*2; for(let rr=0.1; rr<10; rr+=0.04){ const X=LAKE.x+Math.cos(a)*rr, Z=LAKE.z+Math.sin(a)*rr; if(lakeDist(X,Z)>0){ pts.push([X,Z]); break; } } }
+      for(let i=0;i<pts.length;i++){ const [ax,az]=pts[i],[bx,bz]=pts[(i+1)%pts.length]; layers.estruturas.add(shadowy(seg3(0.2,0.9,ax,ly+0.3,az,bx,ly+0.3,bz,M.block))); }
+      const t=0.55, dx=LAKE.tipX-LAKE.x, dz=LAKE.tipZ-LAKE.z, L=Math.hypot(dx,dz), cxl=LAKE.x+dx*t, czl=LAKE.z+dz*t, w=LAKE.r*(1-t*0.85)+0.2;
+      layers.estruturas.add(shadowy(seg3(0.22,0.8,cxl-dz/L*w,ly+0.25,czl+dx/L*w,cxl+dz/L*w,ly+0.25,czl-dx/L*w,M.block)));
+    }
   }
 
   /* casa */
   const C=P.casa, hg=new THREE.Group();
   const k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3; // borda esquerda da parede
   const main=box(C.largura,C.altura,C.fundo,M.house,xl+C.largura/2,C.altura/2,-C.fundo/2);
-  const ridgeH=1.6;
+  const ridgeH=1.8;
   const rf=new THREE.Mesh(new THREE.BufferGeometry(),M.roof);
-  const W=C.largura+0.8, D=C.fundo+0.8, x0=xl-0.4;
+  const W=C.largura+0.8, D=C.fundo+0.8, x0=xl-0.4, xm=xl+C.largura/2, zt=0.4, zb=0.4-D, rtop=C.altura+ridgeH;
   const P3 = (X,y,Z)=>[X,y,-Z];
-  const rv=[...P3(x0,C.altura,0.4),...P3(x0+W,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),
-            ...P3(x0,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0,C.altura+ridgeH,0.4-D/2),
-            ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),
-            ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),...P3(x0,C.altura,0.4-D)];
+  const rv=[...P3(x0,C.altura,zt),...P3(xm,rtop,zt),...P3(xm,rtop,zb),  ...P3(x0,C.altura,zt),...P3(xm,rtop,zb),...P3(x0,C.altura,zb),
+            ...P3(x0+W,C.altura,zt),...P3(x0+W,C.altura,zb),...P3(xm,rtop,zb),  ...P3(x0+W,C.altura,zt),...P3(xm,rtop,zb),...P3(xm,rtop,zt),
+            ...P3(xl,C.altura,0),...P3(xl+C.largura,C.altura,0),...P3(xm,rtop-0.1,0),
+            ...P3(xl,C.altura,-C.fundo),...P3(xm,rtop-0.1,-C.fundo),...P3(xl+C.largura,C.altura,-C.fundo)];
   rf.geometry.setAttribute('position',new THREE.Float32BufferAttribute(rv,3)); rf.geometry.computeVertexNormals(); rf.material=new THREE.MeshStandardMaterial({color:'#a9aca8',roughness:.9,side:THREE.DoubleSide});
   const win1=box(1.2,1.1,0.05,M.dark,xl+C.largura/3,1.55,0.02), win2=box(1.2,1.1,0.05,M.dark,xl+2*C.largura/3,1.55,0.02);
   const d1=box(0.05,2.1,0.9,M.dark,xl+C.largura+0.02,1.05,-C.fundo/4), d2=box(0.05,2.1,0.9,M.dark,xl+C.largura+0.02,1.05,-3*C.fundo/4);
-  const split=box(C.largura+0.9,0.06,0.08,M.dark,xl+C.largura/2,C.altura+0.85,-C.fundo/2);
-  hg.add(main,rf,win1,win2,d1,d2,split); layers.casa.add(shadowy(hg));
+  const split=box(0.08,C.altura,0.12,M.dark,xl+C.largura+0.04,C.altura/2,-C.fundo/2);
+  // varanda coberta na frente (lado da rua)
+  const vw=2.6, vr=box(vw,0.1,C.fundo+0.6,M.roof,xl+C.largura+vw/2,C.altura-0.15,-C.fundo/2); vr.rotation.z=-0.08;
+  hg.add(main,rf,win1,win2,d1,d2,split,vr);
+  for(let i=0;i<=4;i++){ hg.add(box(0.12,C.altura-0.2,0.12,M.wood,xl+C.largura+vw-0.1,(C.altura-0.2)/2,-0.1-i*(C.fundo-0.2)/4)); }
+  // deck pequeno na porta dos fundos (lado do barranco)
+  hg.add(box(2.6,0.15,3.2,M.wood,xl-1.3,0.25,-C.fundo*0.55));
+  for(const [ox,oz] of [[-2.5,-1.5],[-2.5,1.5]]) hg.add(box(0.12,1.2,0.12,M.wood,xl+ox,-0.35,-C.fundo*0.55+oz));
+  layers.casa.add(shadowy(hg));
+  addLabel('Varanda', xl+C.largura+vw/2, C.altura+0.6, -C.fundo*0.3);
+  addLabel('Deck dos fundos', xl-1.3, 1.4, C.fundo*-0.55);
   addLabel('Casa 1 · Casa 2 (portas para a rua)', xl+C.largura/2, C.altura+2.4, -C.fundo/2);
   addLabel('Janela das fotos',0,2.6,0.1);
 
@@ -432,14 +499,25 @@ function build(){
   const rnd=mulberry(7);
   const palm=(X,Z,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.22,h,8),M.trunk); t.position.copy(v(X,y+h/2,Z));
     const c=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8),M.tree); c.scale.y=0.45; c.position.copy(v(X,y+h,Z)); return [t,c]; };
-  const arauc=(X,Z,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,h,8),M.trunk); t.position.copy(v(X,y+h/2,Z));
-    const c=new THREE.Mesh(new THREE.SphereGeometry(3.6,14,8,0,Math.PI*2,0,Math.PI/2),M.tree); c.scale.y=0.35; c.position.copy(v(X,y+h-0.4,Z)); return [t,c]; };
+  // araucária adulta (Araucaria angustifolia): tronco reto sem galhos até ~70% da altura, copa em candelabro com topo achatado
+  const arauc=(X,Z,h,dap=0.7,copa=10)=>{ const y=H(X,Z), g=new THREE.Group(); g.position.copy(v(X,y,Z));
+    const t=new THREE.Mesh(new THREE.CylinderGeometry(dap*0.32,dap*0.55,h,10),M.trunk); t.position.y=h/2; g.add(t);
+    const base=h*0.72, R=copa/2, rng=mulberry(Math.round(X*31+Z*17));
+    for(let w=0; w<3; w++){ const yb=base+w*(h-base)*0.28, len=R*(1-w*0.22), nb=6;
+      for(let i=0;i<nb;i++){ const a=(i+w*0.5+rng()*0.3)/nb*Math.PI*2, up=0.35+w*0.12;
+        const ex=Math.cos(a)*len*0.85, ez=Math.sin(a)*len*0.85, ey=yb+len*up;
+        const br=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.11,1,5),M.trunk); const d=new THREE.Vector3(ex,ey-yb,ez), L=d.length();
+        br.scale.y=L; br.position.set(ex/2,yb+(ey-yb)/2,ez/2); br.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); g.add(br);
+        const tuft=new THREE.Mesh(new THREE.SphereGeometry(1.2,10,6),M.tree); tuft.scale.set(1.1,0.4,1.1); tuft.position.set(ex,ey+0.2,ez); g.add(tuft); } }
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(R*0.8,R*0.45,1.4,20),M.tree); cap.position.y=h-0.5; g.add(cap);
+    return [g]; };
   const blob=(X,Z,r,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.22,h,6),M.trunk); t.position.copy(v(X,y+h/2,Z));
     const c=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M.tree); c.scale.y=0.8; c.position.copy(v(X,y+h+r*0.5,Z)); return [t,c]; };
   const veg=[];
   veg.push(...palm(3.9,34,10));
-  veg.push(...arauc(12.4,29,17), ...arauc(14.8,27,19), ...arauc(15.5,23,18), ...arauc(17,31,16));
-  const S=P.salaoObra, busy=(X,Z)=> (Math.abs(X-S.cx)<S.largura/2+3 && Math.abs(Z-S.cz)<S.comprimento/2+3) || lakeDist(X,Z)<3 ||
+  for(const a of ARAUCARIAS){ veg.push(...arauc(a.x,a.z,a.h,a.dap,a.copa)); }
+  addLabel(`Araucárias (~${ARAUCARIAS.length}, ${Math.min(...ARAUCARIAS.map(a=>a.h))}–${Math.max(...ARAUCARIAS.map(a=>a.h))} m, a confirmar)`, 15, H(15,27)+24, 27);
+  const S=P.salaoObra, busy=(X,Z)=> Math.hypot(X-PRACINHA.x,Z-PRACINHA.z)<5 || Math.hypot(X-PEDRA_PLATO.x,Z-PEDRA_PLATO.z)<4 || Math.hypot(X-ARVORE.x,Z-ARVORE.z)<6 || Math.hypot(X-PEDRA_IMENSA.x,Z-PEDRA_IMENSA.z)<5 || Math.abs(X+11)<2.5&&Z>-1&&Z<21 || (X>-24&&X<-7&&Z>7&&Z<30) || (Math.abs(X-S.cx)<S.largura/2+3 && Math.abs(Z-S.cz)<S.comprimento/2+3) || lakeDist(X,Z)<3 ||
     (Math.abs(X-BANHADO.x)<BANHADO.w/2+2 && Math.abs(Z-BANHADO.z)<BANHADO.d/2+2) || Math.abs(signedDist(RIVER,X,Z))<2.5;
   for(let i=0;i<120;i++){ // mata no barranco, ao longo do rio e além
     const X=-60+rnd()*60, Z=-46+rnd()*112; const dl=-signedDist(LEFT_EDGE,X,Z), dRio=signedDist(RIVER,X,Z);
