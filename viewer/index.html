@@ -1,0 +1,559 @@
+<title>Chácara · Maquete v0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: canvas em tela cheia; barra de ferramentas flutuante em cima, painel de medidas à direita (folha inferior no celular). */
+:root{
+  --bg:#e9eae6; --panel:rgba(250,250,247,.92); --fg:#22251f; --muted:#62675d; --line:#d3d5cd;
+  --accent:#b4532a; --accent-fg:#fff; --chip-hi:#2f6b3a; --chip-mid:#9a6a12; --chip-lo:#a3392b;
+  --font-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1b1d19; --panel:rgba(30,32,28,.92); --fg:#ecede7; --muted:#a3a89c; --line:#3a3d36;
+  --accent:#e07a4c; --accent-fg:#1b1d19; --chip-hi:#7cc58a; --chip-mid:#e2b04f; --chip-lo:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1b1d19; --panel:rgba(30,32,28,.92); --fg:#ecede7; --muted:#a3a89c; --line:#3a3d36;
+  --accent:#e07a4c; --accent-fg:#1b1d19; --chip-hi:#7cc58a; --chip-mid:#e2b04f; --chip-lo:#f08a7a; color-scheme:dark}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);overflow:hidden}
+#stage{position:fixed;inset:0}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none}
+#overlay{position:fixed;pointer-events:none;opacity:.5;object-fit:fill;max-width:none}
+.bar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;pointer-events:none;z-index:5}
+.bar>*{pointer-events:auto}
+.brand{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:flex;gap:10px;align-items:center;backdrop-filter:blur(8px)}
+.brand h1{font-size:14px;font-weight:600;margin:0;letter-spacing:.01em}
+.status{font-family:var(--font-data);font-size:11px;color:var(--chip-mid);border:1px solid currentColor;border-radius:99px;padding:1px 8px;white-space:nowrap}
+.tools{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;backdrop-filter:blur(8px)}
+button{font:500 13px var(--font-ui);color:var(--fg);background:transparent;border:1px solid transparent;border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--line)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.op{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);padding:0 6px}
+.op input{width:80px;accent-color:var(--accent)}
+#panel{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:340px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(10px);display:flex;flex-direction:column;z-index:4}
+#panel header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+#panel header h2{font-size:13px;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+#panelBody{overflow:auto;padding:4px 12px 12px;min-height:0}
+.sec{padding-block:10px;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.sec:last-child{border-bottom:0}
+.sec h3{font-size:12px;margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+.el{display:grid;gap:4px;padding-block:6px}
+.el-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.el-name{font-weight:600;font-size:13px}
+.chip{font-family:var(--font-data);font-size:10.5px;border:1px solid currentColor;border-radius:99px;padding:0 7px;white-space:nowrap}
+.c-alta{color:var(--chip-hi)} .c-media{color:var(--chip-mid)} .c-baixa{color:var(--chip-lo)}
+.el-note{font-size:12px;color:var(--muted);line-height:1.4}
+.fields{display:grid;grid-template-columns:1fr 84px;gap:4px 8px;align-items:center;font-size:12px}
+.fields label{color:var(--fg)}
+.fields input{font:12px var(--font-data);width:100%;box-sizing:border-box;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px;text-align:right;font-variant-numeric:tabular-nums}
+.meas{font-family:var(--font-data);font-size:12px;font-variant-numeric:tabular-nums;display:grid;gap:3px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn-line{border:1px solid var(--line)}
+.hint{font-size:12px;color:var(--muted);line-height:1.45;margin:0}
+.lbl{position:fixed;transform:translate(-50%,-100%);font:500 11px var(--font-ui);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;pointer-events:none;white-space:nowrap;z-index:3}
+.lbl.m{font-family:var(--font-data);background:var(--accent);color:var(--accent-fg);border-color:transparent}
+#pad{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:none;grid-template-columns:repeat(3,44px);gap:4px;z-index:5}
+#pad button{background:var(--panel);border:1px solid var(--line);height:44px;padding:0;font-size:16px}
+#togglePanel{display:none}
+@media (max-width:760px){
+  #panel{top:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));width:auto;height:46vh}
+  #panel.closed{height:auto}
+  #panel.closed #panelBody{display:none}
+  #togglePanel{display:inline-block}
+  .brand h1{font-size:13px}
+  #pad{bottom:calc(46vh + 24px)}
+  body.pc #pad{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)}
+}
+@media (pointer:coarse){ body.walk #pad{display:grid} }
+</style>
+
+<div id="stage"></div>
+<img id="overlay" alt="Foto original tirada da janela, com pessoas desfocadas" hidden src="fotos/janela.jpg">
+
+<div class="bar">
+  <div class="brand"><h1>Chácara · maquete v0</h1><span class="status">aguardando aprovação</span></div>
+  <div class="tools" role="toolbar" aria-label="Modos de navegação">
+    <button id="mOrbit" aria-pressed="true">Órbita</button>
+    <button id="mWalk" aria-pressed="false">Andar</button>
+    <button id="mPhoto" aria-pressed="false">Vista da janela</button>
+    <button id="mRuler" aria-pressed="false">Régua</button>
+    <span class="op" id="opWrap" hidden><label for="opacity">Foto</label><input id="opacity" type="range" min="0" max="1" step="0.05" value="0.5"></span>
+  </div>
+</div>
+
+<div id="pad" aria-label="Controles de movimento">
+  <span></span><button data-k="KeyW" aria-label="Frente">▲</button><span></span>
+  <button data-k="KeyA" aria-label="Esquerda">◀</button><button data-k="KeyS" aria-label="Trás">▼</button><button data-k="KeyD" aria-label="Direita">▶</button>
+</div>
+
+<aside id="panel">
+  <header><h2>Medidas estimadas</h2><button id="togglePanel" class="btn-line" aria-expanded="true">Recolher</button></header>
+  <div id="panelBody">
+    <div class="sec">
+      <p class="hint" id="modeHint">Arraste para girar, role para aproximar, botão direito para deslocar.</p>
+    </div>
+    <div class="sec" id="rulerSec">
+      <h3>Régua</h3>
+      <p class="hint">Ative a Régua e clique em dois pontos da cena. Se você souber a medida real de algo, meça e informe abaixo para recalibrar toda a maquete.</p>
+      <div class="meas" id="measList"><span class="hint">Nenhuma medida ainda.</span></div>
+      <div class="row">
+        <label for="realVal" class="hint">Valor real da última (m)</label>
+        <input id="realVal" type="number" step="0.01" min="0" style="width:80px;font:12px var(--font-data);background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px">
+        <button id="applyScale" class="btn-line">Calibrar</button>
+        <button id="clearMeas" class="btn-line">Limpar</button>
+      </div>
+      <div class="hint" id="scaleInfo"></div>
+    </div>
+    <div class="sec">
+      <h3>Camadas</h3>
+      <div class="row" id="layers"></div>
+    </div>
+    <div class="sec" id="elements"><h3>Elementos</h3></div>
+    <div class="sec">
+      <h3>Exportar</h3>
+      <p class="hint">Copia os parâmetros atuais da cena. Cole na conversa se ajustar algo aqui.</p>
+      <div class="row"><button id="copyJson" class="btn-line">Copiar parâmetros</button><button id="resetParams" class="btn-line">Restaurar v0</button></div>
+      <textarea id="jsonOut" hidden readonly style="width:100%;height:120px;font:11px var(--font-data);background:transparent;color:var(--fg);border:1px solid var(--line)"></textarea>
+    </div>
+    <div class="sec">
+      <h3>Como foi estimado</h3>
+      <p class="hint">Uma só posição de câmera (janela da casa), lente de 25 mm equivalente. Escala calibrada pela picape (1,8 m de altura, 1,77 m de largura), pelo carro prata (entre-eixos ~2,55 m) e pelas pessoas. Câmera estimada a 1,45 m do gramado, inclinada 8,4° para baixo. A fogueira e o galpão vieram da foto mais recente. Carros e pessoas foram removidos.</p>
+    </div>
+  </div>
+</aside>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- Parâmetros da cena (metros). X = direita, Z = à frente da janela. ---------- */
+const DEFAULTS = {
+  escala: 1.0,
+  camera: { altura: 1.45, inclinacao: -8.4, fovVertical: 42.7 },
+  fogueira: { cx: 3.6, cz: 8.3, diametro: 5.4, profundidade: 0.55, alturaMureta: 0.3 },
+  galpao: { cx: 3.6, frenteZ: 17.5, largura: 6.0, profundidade: 4.5, alturaTelhado: 3.0, alturaBase: 0.4 },
+  barranco: { altura: 4.2, largura: 3.5 },
+  terreno: { quedaEsquerda: 4.5, subidaFundo: 0.015 },
+  casa: { larguraEsq: 10, larguraDir: 4, fundo: 8, altura: 2.8 }
+};
+const META = {
+  fogueira: { nome:'Fogueira (fosso)', conf:'media', nota:'Círculo escavado com mureta de blocos, banco interno e escada à esquerda. Diâmetro conferido de duas fotos diferentes.',
+    campos:{diametro:'Diâmetro externo', profundidade:'Profundidade do piso', cx:'Centro, lado (X)', cz:'Centro, distância da janela (Z)'} },
+  galpao: { nome:'Galpão', conf:'baixa', nota:'Só aparece de frente em uma foto. Fundo e lateral direita são suposições.',
+    campos:{largura:'Largura da frente', profundidade:'Profundidade', alturaTelhado:'Altura do telhado', alturaBase:'Altura da base', frenteZ:'Distância da janela', cx:'Centro, lado (X)'} },
+  barranco: { nome:'Barranco (direita)', conf:'media', nota:'Talude que sobe até a caixa d’água e as araucárias.',
+    campos:{altura:'Altura', largura:'Largura da rampa'} },
+  terreno: { nome:'Platô gramado e talude esquerdo', conf:'baixa', nota:'O platô é quase plano e sobe de leve para o fundo. À esquerda, depois das canas, o terreno desce para a mata. Altura da queda é palpite.',
+    campos:{quedaEsquerda:'Queda à esquerda', subidaFundo:'Subida p/ fundo (m/m)'} },
+  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'Não aparece nas fotos. Volume só para referência de posição.',
+    campos:{larguraEsq:'Até a esquerda da janela', larguraDir:'Até a direita da janela', fundo:'Profundidade', altura:'Pé-direito'} },
+  camera: { nome:'Câmera da foto', conf:'media', nota:'Altura e inclinação calibradas pela picape, carro e pessoas.',
+    campos:{altura:'Altura sobre o gramado', inclinacao:'Inclinação (graus)'} }
+};
+let P;
+try { P = JSON.parse(localStorage.getItem('chacara-v0')) || null; } catch(e) { P = null; }
+if (!P || !P.fogueira) P = structuredClone(DEFAULTS);
+const save = () => { try { localStorage.setItem('chacara-v0', JSON.stringify(P)); } catch(e) {} };
+
+// Linhas medidas na foto (projetadas no chão)
+const LEFT_EDGE = [[-8,6.6],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-2.5,18],[-4,24],[-5.5,32],[-7,42]];
+const TOE = [[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,40]];
+
+/* ---------- utilidades ---------- */
+const sstep = (a,b,x) => { const t = Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); };
+function signedDist(poly, X, Z){ // positivo à direita do sentido da linha (Z crescente)
+  let best = 1e9, sign = 1;
+  for (let i=0;i<poly.length-1;i++){
+    const [ax,az]=poly[i],[bx,bz]=poly[i+1];
+    const dx=bx-ax, dz=bz-az, L2=dx*dx+dz*dz;
+    let t=((X-ax)*dx+(Z-az)*dz)/L2; t=Math.max(0,Math.min(1,t));
+    const px=ax+t*dx, pz=az+t*dz, d=Math.hypot(X-px,Z-pz);
+    if (d<best){ best=d; const cr = dx*(Z-az)-dz*(X-ax); sign = cr<0 ? 1 : -1; }
+  }
+  return best*sign;
+}
+function H(X,Z){ // altura do terreno (antes da escala)
+  let h = P.terreno.subidaFundo*Math.max(0,Z-6);
+  const dl = -signedDist(LEFT_EDGE,X,Z); // positivo para a esquerda (fora do platô)
+  h -= P.terreno.quedaEsquerda*sstep(0.3,7,dl) + Math.max(0,dl-7)*0.15;
+  const dr = signedDist(TOE,X,Z);
+  h += P.barranco.altura*sstep(0,P.barranco.largura,dr) + Math.max(0,dr-P.barranco.largura)*0.06;
+  if (Z<0.2) h = Math.max(h, 0); // sob a casa
+  return h;
+}
+
+/* ---------- renderer / cena ---------- */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#dfe3e4');
+scene.fog = new THREE.Fog('#dfe3e4', 70, 180);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+camera.position.set(-13, 17, -1);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(3, 0, -12); controls.enableDamping = true; controls.maxPolarAngle = Math.PI*0.495;
+
+scene.add(new THREE.HemisphereLight('#f3f4f0', '#8d8f86', 1.3));
+const sun = new THREE.DirectionalLight('#ffffff', 2.2);
+sun.position.set(-25, 35, 10); sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-35,right:35,top:35,bottom:-35,near:1,far:120});
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+sun.target.position.set(3,0,-14); scene.add(sun, sun.target);
+
+const mat = (c, extra={}) => new THREE.MeshStandardMaterial({color:c, roughness:.92, metalness:0, ...extra});
+const M = {
+  grass: null, wall: mat('#f1f0ea'), block: mat('#d9d8d1'), floor: mat('#c4c2b9'), stone: mat('#b9b7ae'),
+  wood: mat('#cfc7ba'), roof: mat('#9fa3a0'), tree: mat('#c3c9bf'), trunk: mat('#b3ada3'), house: mat('#ecebe6'), dark: mat('#5d605a')
+};
+// textura de grade de 1 m
+function gridTex(){
+  const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+  g.fillStyle='#d4d6cf'; g.fillRect(0,0,128,128); g.strokeStyle='rgba(60,64,56,.28)'; g.lineWidth=2; g.strokeRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+const GT = gridTex();
+M.grass = mat('#ffffff',{map:GT});
+// recorte circular do terreno onde fica a fogueira (furo limpo, sem serrilhado)
+const uPit = { value: new THREE.Vector3(0,0,0) };
+M.grass.onBeforeCompile = sh => {
+  sh.uniforms.uPit = uPit;
+  sh.vertexShader = 'varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed,1.0)).xyz;');
+  sh.fragmentShader = 'uniform vec3 uPit;\nvarying vec3 vWPos;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (length(vWPos.xz - uPit.xy) < uPit.z) discard;');
+};
+const insidePit = (X,Z) => Math.hypot(X-P.fogueira.cx, Z-P.fogueira.cz) < P.fogueira.diametro/2 - 0.1;
+
+const world = new THREE.Group(); scene.add(world);
+const layers = { terreno:new THREE.Group(), estruturas:new THREE.Group(), casa:new THREE.Group(), vegetacao:new THREE.Group() };
+Object.values(layers).forEach(g=>world.add(g));
+const labels = []; // {el, pos: Vector3 (world group local)}
+
+const shadowy = o => { o.traverse(m=>{ if(m.isMesh){ m.castShadow=true; m.receiveShadow=true; } }); return o; };
+const v = (X,y,Z) => new THREE.Vector3(X,y,-Z);
+function box(w,h,d,m,X,y,Z,rotY=0){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.copy(v(X,y,Z)); b.rotation.y=rotY; return b; }
+
+function clearGroup(g){ g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); g.clear(); }
+function addLabel(text, X, y, Z){ const el=document.createElement('div'); el.className='lbl'; el.textContent=text; document.body.appendChild(el); labels.push({el,pos:v(X,y,Z),layer:'rotulos'}); }
+
+function build(){
+  Object.values(layers).forEach(clearGroup);
+  labels.forEach(l=>l.el.remove()); labels.length=0;
+  world.scale.setScalar(P.escala);
+
+  /* terreno */
+  const X0=-45, X1=55, Z0=-12, Z1=80, step=0.3;
+  const nx=Math.round((X1-X0)/step), nz=Math.round((Z1-Z0)/step);
+  const geo=new THREE.PlaneGeometry(X1-X0, Z1-Z0, nx, nz); geo.rotateX(-Math.PI/2);
+  geo.translate((X0+X1)/2, 0, -(Z0+Z1)/2);
+  const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++){ const X=pos.getX(i), Z=-pos.getZ(i); pos.setY(i,H(X,Z)); }
+  geo.computeVertexNormals();
+  const uv=geo.attributes.uv; for(let i=0;i<uv.count;i++){ uv.setXY(i, pos.getX(i), pos.getZ(i)); }
+  const terrain=new THREE.Mesh(geo,M.grass); terrain.receiveShadow=true; terrain.name='terreno';
+  layers.terreno.add(terrain);
+  // serra ao fundo
+  const ridge=new THREE.Mesh(new THREE.CylinderGeometry(150,170,40,48,1,true,Math.PI*0.55,Math.PI*0.9), mat('#cdd1cd',{side:THREE.BackSide}));
+  ridge.position.set(0,5,-20); layers.terreno.add(ridge);
+
+  /* fogueira */
+  uPit.value.set(P.fogueira.cx*P.escala, -P.fogueira.cz*P.escala, (P.fogueira.diametro/2-0.1)*P.escala);
+  const f=P.fogueira, R=f.diametro/2, g=new THREE.Group(); g.position.copy(v(f.cx,0,f.cz));
+  const ringH=f.profundidade+f.alturaMureta+0.05;
+  const outer=new THREE.Mesh(new THREE.CylinderGeometry(R,R,ringH,72,1,true),M.block); outer.position.y=-f.profundidade+ringH/2-0.05;
+  const inner=new THREE.Mesh(new THREE.CylinderGeometry(R-0.2,R-0.2,ringH,72,1,true),new THREE.MeshStandardMaterial({color:'#d9d8d1',roughness:.92,side:THREE.BackSide})); inner.position.copy(outer.position);
+  const cap=new THREE.Mesh(new THREE.RingGeometry(R-0.2,R,72),M.block); cap.rotation.x=-Math.PI/2; cap.position.y=f.alturaMureta;
+  const seatR=R-0.2, benchW=0.5, seatY=-0.12;
+  const bench=new THREE.Mesh(new THREE.RingGeometry(seatR-benchW,seatR,72),M.stone); bench.rotation.x=-Math.PI/2; bench.position.y=seatY;
+  const benchFace=new THREE.Mesh(new THREE.CylinderGeometry(seatR-benchW,seatR-benchW,f.profundidade+seatY,72,1,true),M.stone); benchFace.position.y=(seatY-f.profundidade)/2;
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(seatR-benchW,64),M.floor); floor.rotation.x=-Math.PI/2; floor.position.y=-f.profundidade;
+  const fire=new THREE.Mesh(new THREE.CircleGeometry(0.45,32),M.dark); fire.rotation.x=-Math.PI/2; fire.position.y=-f.profundidade+0.01;
+  g.add(outer,inner,cap,bench,benchFace,floor,fire);
+  // escada (lado esquerdo, virada para a casa)
+  const ang = Math.PI*1.12; const steps=3;
+  for(let i=0;i<steps;i++){
+    const hgt=(f.profundidade+f.alturaMureta)*(steps-i)/(steps+0.2);
+    const rr=R-0.35-i*0.32;
+    const s=new THREE.Mesh(new THREE.BoxGeometry(0.32,hgt,0.9),M.stone);
+    s.position.set(Math.cos(ang)*rr, -f.profundidade+hgt/2, Math.sin(ang)*rr); s.rotation.y=-ang; g.add(s);
+  }
+  // rocha natural
+  const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(0.8,1),M.stone); rock.scale.set(1.5,0.55,0.9);
+  rock.position.set(Math.cos(Math.PI*0.86)*(R-1.0), -f.profundidade+0.35, Math.sin(Math.PI*0.86)*(R-1.0)); g.add(rock);
+  layers.estruturas.add(shadowy(g));
+  addLabel(`Fogueira Ø ${fmt(f.diametro*P.escala)} m`, f.cx, 1.2, f.cz);
+
+  /* galpão */
+  const G=P.galpao, gg=new THREE.Group(); const gy=H(G.cx,G.frenteZ+G.profundidade/2);
+  gg.position.copy(v(G.cx,gy,G.frenteZ+G.profundidade/2));
+  const base=new THREE.Mesh(new THREE.BoxGeometry(G.largura+0.6,G.alturaBase+0.4,G.profundidade+0.4),M.stone); base.position.y=(G.alturaBase-0.4)/2;
+  gg.add(base);
+  const top=G.alturaBase, postH=G.alturaTelhado;
+  for (const sx of [-1,1]) for (const sz of [-1,1]){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.25,postH,0.25),M.wood);
+    p.position.set(sx*(G.largura/2-0.15), top+postH/2, sz*(G.profundidade/2-0.15)); gg.add(p);
+  }
+  const backW=G.largura*0.78; const bw=new THREE.Mesh(new THREE.BoxGeometry(backW,postH,0.2),M.wall); bw.position.set(-G.largura*0.02, top+postH/2, -(G.profundidade/2-0.1)); gg.add(bw);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(G.largura+0.6,0.16,G.profundidade+0.8),M.roof); roof.position.set(0,top+postH+0.08,0.1); roof.rotation.x=-0.035; gg.add(roof);
+  // anexo metálico à direita
+  const ax=G.largura/2+1.6;
+  const ar=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.08,G.profundidade),M.roof); ar.position.set(ax,top+2.4,0); ar.rotation.z=-0.08; gg.add(ar);
+  for (const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,2.4,0.1),M.dark); p.position.set(ax+1.4,top+1.2,sz*(G.profundidade/2-0.1)); gg.add(p); }
+  layers.estruturas.add(shadowy(gg));
+  addLabel(`Galpão ${fmt(G.largura*P.escala)} × ${fmt(G.profundidade*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
+
+  /* caixa d'água, poste, cerca */
+  const tX=12.6,tZ=26, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
+  layers.estruturas.add(shadowy(tank)); addLabel('Caixa d’água',tX,H(tX,tZ)+1.7,tZ);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.14,7,12),M.trunk); pole.position.copy(v(8.2,3.5,2.8)); layers.estruturas.add(shadowy(pole));
+  addLabel('Poste (posição aprox.)',8.2,7.4,2.8);
+  const fa=[-7.2,7.0], fb=[-3.9,8.3], fl=Math.hypot(fb[0]-fa[0],fb[1]-fa[1]);
+  const fence=box(fl,1.0,0.06,M.wood,(fa[0]+fb[0])/2,0.5+H((fa[0]+fb[0])/2,(fa[1]+fb[1])/2),(fa[1]+fb[1])/2, Math.atan2(fb[1]-fa[1],fb[0]-fa[0]));
+  layers.estruturas.add(shadowy(fence));
+
+  /* casa */
+  const C=P.casa, hg=new THREE.Group();
+  const main=box(C.larguraEsq+C.larguraDir,C.altura,C.fundo,M.house,(C.larguraDir-C.larguraEsq)/2,C.altura/2,-C.fundo/2);
+  const ridgeH=1.6;
+  const rf=new THREE.Mesh(new THREE.BufferGeometry(),M.roof);
+  const W=C.larguraEsq+C.larguraDir+0.8, D=C.fundo+0.8, x0=-C.larguraEsq-0.4;
+  const P3 = (X,y,Z)=>[X,y,-Z];
+  const rv=[...P3(x0,C.altura,0.4),...P3(x0+W,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),
+            ...P3(x0,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0,C.altura+ridgeH,0.4-D/2),
+            ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),
+            ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),...P3(x0,C.altura,0.4-D)];
+  rf.geometry.setAttribute('position',new THREE.Float32BufferAttribute(rv,3)); rf.geometry.computeVertexNormals(); rf.material=new THREE.MeshStandardMaterial({color:'#a9aca8',roughness:.9,side:THREE.DoubleSide});
+  const wing=box(C.larguraEsq-2.6,C.altura,3.5,M.house,-(2.6+C.larguraEsq)/2,C.altura/2,1.75);
+  const win=box(1.2,1.1,0.05,M.dark,0,1.55,0.02);
+  hg.add(main,rf,wing,win); layers.casa.add(shadowy(hg));
+  addLabel('Janela das fotos',0,2.6,0.1);
+
+  /* vegetação de referência */
+  const rnd=mulberry(7);
+  const palm=(X,Z,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.22,h,8),M.trunk); t.position.copy(v(X,y+h/2,Z));
+    const c=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8),M.tree); c.scale.y=0.45; c.position.copy(v(X,y+h,Z)); return [t,c]; };
+  const arauc=(X,Z,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,h,8),M.trunk); t.position.copy(v(X,y+h/2,Z));
+    const c=new THREE.Mesh(new THREE.SphereGeometry(3.6,14,8,0,Math.PI*2,0,Math.PI/2),M.tree); c.scale.y=0.35; c.position.copy(v(X,y+h-0.4,Z)); return [t,c]; };
+  const blob=(X,Z,r,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.22,h,6),M.trunk); t.position.copy(v(X,y+h/2,Z));
+    const c=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M.tree); c.scale.y=0.8; c.position.copy(v(X,y+h+r*0.5,Z)); return [t,c]; };
+  const veg=[];
+  veg.push(...palm(3.9,34,10));
+  veg.push(...arauc(12.4,29,17), ...arauc(14.8,27,19), ...arauc(15.5,23,18), ...arauc(17,31,16));
+  for(let i=0;i<46;i++){ // mata na encosta esquerda e ao fundo
+    let X=-40+rnd()*45, Z=4+rnd()*60; if(-signedDist(LEFT_EDGE,X,Z)<4) continue;
+    veg.push(...blob(X,Z,2+rnd()*2.5,4+rnd()*6));
+  }
+  // touceiras de cana na borda
+  for(const [X,Z] of [[-5.5,8.2],[-4.3,8.9],[-3.1,9.8],[-2.6,11.3],[-2.2,12.6]]){
+    const c=new THREE.Mesh(new THREE.ConeGeometry(0.55,2.8,7),M.tree); c.position.copy(v(X,H(X,Z)+1.4,Z)); veg.push(c);
+  }
+  veg.forEach(m=>layers.vegetacao.add(shadowy(m)));
+
+  // rótulos de terreno
+  addLabel(`Barranco ~${fmt(P.barranco.altura*P.escala)} m`, 10.6, H(10.6,14)+0.8, 14);
+  addLabel('Platô gramado', -0.5, 0.4, 13);
+  addLabel(`Talude p/ mata ~${fmt(P.terreno.quedaEsquerda*P.escala)} m`, -5.5, H(-5.5,12)+1.2, 12);
+  refreshLayerVis();
+  ruler.reproject();
+}
+function mulberry(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const fmt = n => n.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2});
+
+/* ---------- camadas ---------- */
+const layerNames = { terreno:'Terreno', estruturas:'Construções', casa:'Casa', vegetacao:'Árvores', rotulos:'Rótulos', grade:'Grade 1 m' };
+const vis = { terreno:true, estruturas:true, casa:true, vegetacao:true, rotulos:true, grade:true };
+const layersEl=document.getElementById('layers');
+for (const [k,name] of Object.entries(layerNames)){
+  const b=document.createElement('button'); b.className='btn-line'; b.id='ly-'+k; b.textContent=name; b.setAttribute('aria-pressed','true');
+  b.onclick=()=>{ vis[k]=!vis[k]; b.setAttribute('aria-pressed',String(vis[k])); refreshLayerVis(); };
+  layersEl.appendChild(b);
+}
+function refreshLayerVis(){
+  for (const k of ['terreno','estruturas','casa','vegetacao']) layers[k].visible=vis[k];
+  M.grass.map = vis.grade ? GT : null; M.grass.color.set(vis.grade?'#ffffff':'#d4d6cf'); M.grass.needsUpdate=true;
+}
+
+/* ---------- painel de elementos editáveis ---------- */
+function buildPanel(){
+  const host=document.getElementById('elements'); host.querySelectorAll('.el').forEach(e=>e.remove());
+  const confTxt={alta:'confiança alta',media:'confiança média',baixa:'confiança baixa'};
+  for (const [key,meta] of Object.entries(META)){
+    const el=document.createElement('div'); el.className='el';
+    el.innerHTML=`<div class="el-head"><span class="el-name">${meta.nome}</span><span class="chip c-${meta.conf}">${confTxt[meta.conf]}</span></div><div class="el-note">${meta.nota}</div>`;
+    const fs=document.createElement('div'); fs.className='fields';
+    for (const [field,label] of Object.entries(meta.campos)){
+      const id=`f-${key}-${field}`; const lab=document.createElement('label'); lab.htmlFor=id; lab.textContent=label + (field==='inclinacao'||field==='subidaFundo'?'':' (m)');
+      const inp=document.createElement('input'); inp.type='number'; inp.step=field==='subidaFundo'?'0.005':'0.05'; inp.id=id; inp.value=P[key][field];
+      inp.onchange=()=>{ const n=parseFloat(inp.value); if(!isFinite(n)) return; P[key][field]=n; save(); build(); if(mode==='photo') setPhotoCam(); };
+      fs.append(lab,inp);
+    }
+    el.appendChild(fs); host.appendChild(el);
+  }
+}
+
+/* ---------- régua ---------- */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+const ruler = {
+  pts:[], items:[], dots:[],
+  add(p){ // p em coords do mundo (já escaladas)
+    const local = world.worldToLocal(p.clone());
+    this.pts.push(local);
+    const dot=new THREE.Mesh(new THREE.SphereGeometry(0.08,12,8),new THREE.MeshBasicMaterial({color:'#b4532a',depthTest:false})); dot.renderOrder=10; dot.position.copy(local); world.add(dot); this.dots.push(dot);
+    if (this.pts.length%2===0){
+      const a=this.pts[this.pts.length-2], b=local;
+      const geo=new THREE.BufferGeometry().setFromPoints([a,b]);
+      const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:'#b4532a',depthTest:false})); line.renderOrder=10; world.add(line);
+      const el=document.createElement('div'); el.className='lbl m'; document.body.appendChild(el);
+      this.items.push({a,b,line,el});
+      this.render();
+    }
+  },
+  dist(it){ const s=P.escala; const d=it.a.distanceTo(it.b)*s; const dh=Math.hypot(it.a.x-it.b.x,it.a.z-it.b.z)*s; const dv=Math.abs(it.a.y-it.b.y)*s; return {d,dh,dv}; },
+  render(){
+    const list=document.getElementById('measList');
+    if(!this.items.length){ list.innerHTML='<span class="hint">Nenhuma medida ainda.</span>'; return; }
+    list.innerHTML=this.items.map((it,i)=>{ const {d,dh,dv}=this.dist(it); return `<div>#${i+1}  ${fmt(d)} m  <span class="hint">(horiz. ${fmt(dh)} · vert. ${fmt(dv)})</span></div>`; }).join('');
+    this.items.forEach(it=>it.el.textContent=fmt(this.dist(it).d)+' m');
+  },
+  clear(){ this.items.forEach(it=>{ world.remove(it.line); it.el.remove(); }); this.dots.forEach(d=>world.remove(d)); this.dots=[]; this.items=[]; this.pts=[]; this.render(); },
+  reproject(){ this.render(); }
+};
+document.getElementById('clearMeas').onclick=()=>ruler.clear();
+document.getElementById('applyScale').onclick=()=>{
+  const it=ruler.items.at(-1), real=parseFloat(document.getElementById('realVal').value);
+  const info=document.getElementById('scaleInfo');
+  if(!it){ info.textContent='Meça algo com a Régua primeiro.'; return; }
+  if(!(real>0)){ info.textContent='Informe o valor real em metros.'; return; }
+  const cur=it.a.distanceTo(it.b); P.escala = real/cur; save(); build(); buildPanel();
+  info.textContent=`Escala ajustada para ${P.escala.toFixed(3)} (todas as medidas foram atualizadas).`;
+};
+
+/* ---------- modos ---------- */
+let mode='orbit', rulerOn=false, prevMode='orbit';
+const btn={orbit:mOrbit, walk:mWalk, photo:mPhoto};
+const hint=document.getElementById('modeHint'), overlay=document.getElementById('overlay'), opWrap=document.getElementById('opWrap');
+const HINTS={orbit:'Arraste para girar, role ou pince para aproximar, botão direito ou dois dedos para deslocar.',
+  walk:'Arraste para olhar. W A S D ou setas para andar, Shift para correr. No celular use as setas na tela.',
+  photo:'Mesma posição e lente da foto. Ajuste a opacidade para comparar a maquete com a foto real.'};
+const look={yaw:0,pitch:0};
+function setMode(m){
+  if(m==='photo' && mode!=='photo') prevMode=mode;
+  mode=m; Object.entries(btn).forEach(([k,b])=>b.setAttribute('aria-pressed',String(k===m)));
+  controls.enabled = (m==='orbit');
+  overlay.hidden = m!=='photo'; opWrap.hidden = m!=='photo';
+  document.body.classList.toggle('walk', m==='walk');
+  hint.textContent=HINTS[m];
+  if(m==='walk'){
+    const s=P.escala; const p=new THREE.Vector3(1.5*s,0,-3*s);
+    camera.position.set(p.x, groundAt(p.x,p.z)+1.6, p.z); look.yaw=0; look.pitch=-0.05; camera.fov=65; camera.updateProjectionMatrix();
+  }
+  if(m==='orbit'){ camera.fov=55; camera.updateProjectionMatrix(); if(camera.position.y<4){ camera.position.set(-13,17,-1); } controls.target.set(3*P.escala,0,-12*P.escala); }
+  if(m==='photo') setPhotoCam();
+  resize();
+}
+function setPhotoCam(){
+  const s=P.escala, c=P.camera;
+  camera.position.set(0, c.altura*s, -0.3*s);
+  camera.rotation.set(THREE.MathUtils.degToRad(c.inclinacao),0,0,'YXZ');
+  camera.fov=c.fovVertical; camera.updateProjectionMatrix();
+}
+mOrbit.onclick=()=>setMode('orbit'); mWalk.onclick=()=>setMode('walk');
+mPhoto.onclick=()=>setMode(mode==='photo'?prevMode:'photo');
+mRuler.onclick=()=>{ rulerOn=!rulerOn; mRuler.setAttribute('aria-pressed',String(rulerOn)); renderer.domElement.style.cursor=rulerOn?'crosshair':''; };
+document.getElementById('opacity').oninput=e=>overlay.style.opacity=e.target.value;
+
+function groundAt(x,z){ // coords de mundo escaladas
+  const s=P.escala, X=x/s, Z=-z/s; return (insidePit(X,Z) ? -P.fogueira.profundidade : H(X,Z))*s;
+}
+
+/* entrada */
+const keys=new Set();
+addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; keys.add(e.code); });
+addEventListener('keyup',e=>keys.delete(e.code));
+document.querySelectorAll('#pad button').forEach(b=>{
+  b.addEventListener('pointerdown',e=>{ e.preventDefault(); keys.add(b.dataset.k); });
+  ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,()=>keys.delete(b.dataset.k)));
+});
+let down=null;
+const cv=renderer.domElement;
+cv.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,id:e.pointerId}; if(mode==='walk') cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove',e=>{
+  if(!down || mode!=='walk') return;
+  look.yaw -= (e.clientX-down.lx)*0.004; look.pitch -= (e.clientY-down.ly)*0.004;
+  look.pitch=Math.max(-1.4,Math.min(1.4,look.pitch)); down.lx=e.clientX; down.ly=e.clientY;
+});
+cv.addEventListener('pointerup',e=>{
+  if(down && rulerOn && Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){
+    const r=cv.getBoundingClientRect(), vp=viewRect();
+    ndc.set(((e.clientX-r.left-vp.x)/vp.w)*2-1, -((e.clientY-r.top-vp.y)/vp.h)*2+1);
+    ray.setFromCamera(ndc,camera);
+    const hits=ray.intersectObjects([layers.terreno,layers.estruturas,layers.casa].filter(g=>g.visible),true).filter(h=>h.object.type==='Mesh' && !(h.object.name==='terreno' && insidePit(h.point.x/P.escala,-h.point.z/P.escala)));
+    if(hits.length) ruler.add(hits[0].point);
+  }
+  down=null;
+});
+
+/* ---------- viewport (letterbox 16:9 na vista da foto) ---------- */
+function viewRect(){
+  const W=stage.clientWidth, Hh=stage.clientHeight;
+  if(mode!=='photo') return {x:0,y:0,w:W,h:Hh};
+  const ar=16/9; let w=W, h=W/ar; if(h>Hh){ h=Hh; w=Hh*ar; }
+  return {x:(W-w)/2,y:(Hh-h)/2,w,h};
+}
+function resize(){
+  const W=stage.clientWidth, Hh=stage.clientHeight; renderer.setSize(W,Hh,false);
+  const r=viewRect(); camera.aspect=r.w/r.h; camera.updateProjectionMatrix();
+  Object.assign(overlay.style,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px'});
+}
+addEventListener('resize',resize);
+
+/* ---------- loop ---------- */
+const clock=new THREE.Clock(), tmp=new THREE.Vector3();
+function frame(){
+  const dt=Math.min(0.05,clock.getDelta());
+  if(mode==='orbit') controls.update();
+  if(mode==='walk'){
+    const sp=(keys.has('ShiftLeft')||keys.has('ShiftRight')?7:3)*dt;
+    const fw=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
+    const st=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
+    camera.position.x += (-Math.sin(look.yaw)*fw + Math.cos(look.yaw)*st)*sp;
+    camera.position.z += (-Math.cos(look.yaw)*fw - Math.sin(look.yaw)*st)*sp;
+    const gy=groundAt(camera.position.x,camera.position.z)+1.6; camera.position.y += (gy-camera.position.y)*Math.min(1,dt*10);
+    camera.rotation.set(look.pitch,look.yaw,0,'YXZ');
+  }
+  const r=viewRect();
+  renderer.setScissorTest(true); renderer.setViewport(r.x,stage.clientHeight-r.y-r.h,r.w,r.h); renderer.setScissor(r.x,stage.clientHeight-r.y-r.h,r.w,r.h);
+  renderer.render(scene,camera);
+  // rótulos
+  const all=[...labels.map(l=>({el:l.el,p:l.pos,show:vis.rotulos})), ...ruler.items.map(it=>({el:it.el,p:it.a.clone().add(it.b).multiplyScalar(0.5),show:true}))];
+  for(const {el,p,show} of all){
+    tmp.copy(p).applyMatrix4(world.matrixWorld).project(camera);
+    const on = show && tmp.z<1 && Math.abs(tmp.x)<1.05 && Math.abs(tmp.y)<1.05;
+    el.hidden=!on; if(on){ el.style.left=(r.x+(tmp.x+1)/2*r.w)+'px'; el.style.top=(r.y+(1-tmp.y)/2*r.h-6)+'px'; }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- painel / export ---------- */
+const panel=document.getElementById('panel'), tp=document.getElementById('togglePanel');
+tp.onclick=()=>{ const c=panel.classList.toggle('closed'); document.body.classList.toggle('pc',c); tp.textContent=c?'Abrir':'Recolher'; tp.setAttribute('aria-expanded',String(!c)); };
+document.getElementById('copyJson').onclick=()=>{
+  const txt=JSON.stringify(P,null,1), ta=document.getElementById('jsonOut'); ta.value=txt;
+  navigator.clipboard?.writeText(txt).then(()=>{ document.getElementById('copyJson').textContent='Copiado'; }).catch(()=>{ ta.hidden=false; ta.select(); });
+};
+document.getElementById('resetParams').onclick=()=>{ P=structuredClone(DEFAULTS); save(); ruler.clear(); build(); buildPanel(); if(mode==='photo') setPhotoCam(); };
+
+build(); buildPanel(); resize(); frame();
+</script>
