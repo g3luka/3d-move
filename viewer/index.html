@@ -77,7 +77,7 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
 <img id="overlay" alt="Foto original tirada da janela, com pessoas desfocadas" hidden src="fotos/janela.jpg">
 
 <div class="bar">
-  <div class="brand"><h1>Chácara · maquete v5</h1><span class="status">aguardando aprovação</span></div>
+  <div class="brand"><h1>Chácara · maquete v6</h1><span class="status">aguardando aprovação</span></div>
   <div class="tools" role="toolbar" aria-label="Modos de navegação">
     <button id="mOrbit" aria-pressed="true">Órbita</button>
     <button id="mWalk" aria-pressed="false">Andar</button>
@@ -153,7 +153,7 @@ const META = {
     campos:{diametro:'Diâmetro externo', profundidade:'Profundidade do piso', cx:'Centro, lado (X)', cz:'Centro, distância da janela (Z)'} },
   galpao: { nome:'Salão Superior (cozinha externa)', conf:'media', nota:'8 × 7 m informados. Parte aberta na frente; atrás da parede do fundo, dois banheiros com porta cada um para uma lateral externa. Profundidade dos banheiros é estimada.',
     campos:{largura:'Largura da frente', profundidade:'Profundidade total', fundoBanheiros:'Profundidade dos banheiros', alturaTelhado:'Altura do telhado', alturaBase:'Altura da base', frenteZ:'Distância da janela', cx:'Centro, lado (X)'} },
-  barranco: { nome:'Talude da rua (direita)', conf:'media', nota:'Sobe do platô até a rua, que passa do lado de fora, colada na cerca. A caixa d’água e as araucárias ficam no alto.',
+  barranco: { nome:'Talude da rua (direita)', conf:'media', nota:'Sobe do platô até o alto, por onde passa a rua do lado de fora da cerca. Ao lado do Salão Superior o talude faz duas curvas: passa por trás do salão e volta a ficar paralelo à rua, que segue reta. A caixa d’água e as araucárias ficam nessas curvas, atrás do salão.',
     campos:{altura:'Altura', largura:'Largura da rampa'} },
   terreno: { nome:'Barranco (esquerda) e área de baixo', conf:'baixa', nota:'Desce uns 10 m. Corre ao lado da casa, abre na diagonal ao lado da fogueira até a pedra grande na linha do Salão Superior e segue reto. Lá embaixo é plano: banhado, laguinho, salão em obra e o rio na divisa. Posições da área de baixo vêm do mapa e são aproximadas.',
     campos:{quedaEsquerda:'Altura do barranco', subidaFundo:'Subida do platô (m/m)'} },
@@ -178,7 +178,11 @@ const save = () => { try { localStorage.setItem('chacara-v2', JSON.stringify(P))
 // Crista do barranco: ao lado da casa, diagonal pelas canas até a pedra grande, depois reta.
 const LEFT_EDGE = [[-8.6,-40],[-8.6,-14],[-8.4,0],[-7.2,5],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-1.4,20],[-1.8,30],[-3,50]];
 // Pé do talude da rua (a rua corre por cima, do lado de fora da cerca)
-const TOE = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,50]];
+// pé do talude: ao lado do Salão Superior faz duas curvas (passa por trás do salão e volta a ficar paralelo à rua)
+const TOE = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.9,18],[8.7,24],[8.4,27.4],[6.5,28.4],[4,28.8],[3.3,30.5],[3.2,50]];
+// a rua não acompanha as curvas: segue a linha original
+const STREET = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,50]];
+const xAt=(poly,Z)=>{ for(let i=0;i<poly.length-1;i++){ const [ax,az]=poly[i],[bx,bz]=poly[i+1]; if(Z>=az&&Z<=bz) return ax+(bx-ax)*(Z-az)/(bz-az); } return poly.at(-1)[0]; };
 // Rio: divisa do fundo (paralela à rua) e divisa de cima, com curva de ~90° (do mapa)
 const RIVER = [[-24,60],[-22.1,37.2],[-34,8],[-43.9,-15.5],[-30,-24],[-12,-32],[6,-36.2],[20,-38]];
 const LAKE = { x:-19, z:17, r:3.4, tipX:-13.8, tipZ:14.2 };
@@ -186,7 +190,7 @@ const PRACINHA = { x:-15, z:21.5, w:5, d:4.5 };
 const PEDRA_PLATO = { x:-13.4, z:11.6 };
 const ARVORE = { x:-15.6, z:12.6, tronco:0.9, altura:18, copa:6.5 };
 const PEDRA_IMENSA = { x:-11.8, z:25 };
-const ARAUCARIAS = [ {x:11.6,z:30,h:22,dap:0.7,copa:10}, {x:14.4,z:27.5,h:24,dap:0.8,copa:11}, {x:15.6,z:23,h:21,dap:0.65,copa:9}, {x:17.2,z:31.5,h:20,dap:0.6,copa:9}, {x:9.8,z:34,h:19,dap:0.55,copa:8} ];
+const ARAUCARIAS = [ {x:11.2,z:25.2,h:22,dap:0.7,copa:10}, {x:12.4,z:29.6,h:24,dap:0.8,copa:11}, {x:9.6,z:33.0,h:21,dap:0.65,copa:9}, {x:6.6,z:35.5,h:20,dap:0.6,copa:9}, {x:10.4,z:21.0,h:19,dap:0.55,copa:8} ];
 const ESTAC = { divisaZ:46, largura:7 };
 const BANHADO = { x:-17, z:4, w:8, d:6 };
 
@@ -356,7 +360,7 @@ function build(){
   addLabel('Banheiros', G.cx, gy+G.alturaBase+G.alturaTelhado+0.4, G.frenteZ+SD-bfd/2);
 
   /* caixa d'água, poste, cerca */
-  const tX=12.6,tZ=26, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
+  const tX=8.0,tZ=30.8, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
   layers.estruturas.add(shadowy(tank)); addLabel('Caixa d’água',tX,H(tX,tZ)+1.7,tZ);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.14,7,12),M.trunk); pole.position.copy(v(8.2,3.5,2.8)); layers.estruturas.add(shadowy(pole));
   addLabel('Poste (posição aprox.)',8.2,7.4,2.8);
@@ -365,8 +369,8 @@ function build(){
     const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,L),m); o.position.copy(v((ax+bx)/2,(ay+by)/2,(az+bz)/2));
     o.rotation.set(-Math.atan2(d.y,Math.hypot(d.x,d.z)), Math.atan2(d.x,d.z), 0, 'YXZ'); return o; };
   // rua (fora da propriedade) e cerca ao longo dela
-  for (let i=0;i<TOE.length-1;i++){
-    const [ax,az]=TOE[i],[bx,bz]=TOE[i+1], off=P.barranco.largura+0.6;
+  for (let i=0;i<STREET.length-1;i++){
+    const [ax,az]=STREET[i],[bx,bz]=STREET[i+1], off=P.barranco.largura+0.6;
     const len=Math.hypot(bx-ax,bz-az), nx=(bz-az)/len, nz=-(bx-ax)/len; // normal para a direita
     const A=[ax+nx*off,az+nz*off], B=[bx+nx*off,bz+nz*off];
     layers.estruturas.add(seg3(0.05,1.1,A[0],H(...A)+0.55,A[1],B[0],H(...B)+0.55,B[1],M.wood));
@@ -388,18 +392,18 @@ function build(){
   // estacionamento: faixa de cima, atrás do pergolado, na beira do barranco até a divisa com o vizinho
   { const edgeX=(Z)=>{ for(let i=0;i<LEFT_EDGE.length-1;i++){ const [ax,az]=LEFT_EDGE[i],[bx,bz]=LEFT_EDGE[i+1]; if(Z>=az&&Z<=bz) return ax+(bx-ax)*(Z-az)/(bz-az); } return LEFT_EDGE.at(-1)[0]; };
     const z0=17.8, z1=ESTAC.divisaZ, larg=ESTAC.largura, n=Math.ceil((z1-z0)/0.7), pos=[], idx=[];
-    for(let i=0;i<=n;i++){ const Z=z0+(z1-z0)*i/n, xa=edgeX(Z)+0.6, xb=xa+larg; for(const X of [xa,xb]) pos.push(X,H(X,Z)+0.05,-Z); if(i<n){ const k=i*2; idx.push(k,k+2,k+1, k+1,k+2,k+3); } }
+    for(let i=0;i<=n;i++){ const Z=z0+(z1-z0)*i/n, xa=edgeX(Z)+0.6, xb=xa+larg; const xb2=Math.min(xb,xAt(TOE,Z)-0.3); for(const X of [xa,xb2]) pos.push(X,H(X,Z)+0.05,-Z); if(i<n){ const k=i*2; idx.push(k,k+2,k+1, k+1,k+2,k+3); } }
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
     const pk=new THREE.Mesh(g,M.road); pk.receiveShadow=true; layers.estruturas.add(pk);
     // vagas alinhadas na beira do barranco (carro de frente para o barranco)
     for(let Z=z0+1.5; Z<z1-1; Z+=2.6){ if(Z>P.galpao.frenteZ-1 && Z<P.galpao.frenteZ+P.galpao.profundidade+P.galpao.fundoBanheiros+1 && edgeX(Z)+5.6>P.galpao.cx-P.galpao.largura/2) continue;
-      const xa=edgeX(Z)+0.6; layers.estruturas.add(seg3(0.08,0.02,xa,H(xa,Z)+0.08,Z,xa+5,H(xa+5,Z)+0.08,Z,M.dark)); }
+      const xa=edgeX(Z)+0.6, xe=Math.min(xa+5,xAt(TOE,Z)-0.3); layers.estruturas.add(seg3(0.08,0.02,xa,H(xa,Z)+0.08,Z,xe,H(xe,Z)+0.08,Z,M.dark)); }
     const zm=(z0+z1)/2+4; addLabel('Estacionamento (visitas, na beira do barranco)', edgeX(zm)+larg/2, H(edgeX(zm)+3,zm)+1.2, zm);
     // divisa com o vizinho (posição estimada)
-    const xd0=edgeX(z1)-1, xd1=TOE.at(-1)[0]-8; layers.estruturas.add(shadowy(seg3(0.08,1.4,xd0,H(xd0,z1)+0.7,z1,xd1,H(xd1,z1)+0.7,z1,M.dark)));
+    const xd0=edgeX(z1)-1, xd1=STREET.at(-1)[0]+P.barranco.largura+0.6; layers.estruturas.add(shadowy(seg3(0.08,1.4,xd0,H(xd0,z1)+0.7,z1,xd1,H(xd1,z1)+0.7,z1,M.dark)));
     addLabel('Divisa com o vizinho (estimada)', (xd0+xd1)/2, H((xd0+xd1)/2,z1)+2, z1);
-    const shed=box(3,2.4,2.5,M.house,edgeX(z1-3)+larg-1,H(edgeX(z1-3)+larg-1,z1-3)+1.2,z1-3); layers.estruturas.add(shadowy(shed));
-    addLabel('Depósito', edgeX(z1-3)+larg-1, H(edgeX(z1-3)+larg-1,z1-3)+3.2, z1-3); }
+    const shX=xAt(TOE,z1-3)-1.8; const shed=box(3,2.4,2.5,M.house,shX,H(shX,z1-3)+1.2,z1-3); layers.estruturas.add(shadowy(shed));
+    addLabel('Depósito', shX, H(shX,z1-3)+3.2, z1-3); }
   // deck, rampa, portão, calçada
   { const C=P.casa, k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3, xr=xl+C.largura;
     const Rr=P.rampa, rx=xr+1.4+Rr.largura/2, z0=0.5, z1=-Rr.comprimento+0.5;
@@ -516,13 +520,13 @@ function build(){
   const veg=[];
   veg.push(...palm(3.9,34,10));
   for(const a of ARAUCARIAS){ veg.push(...arauc(a.x,a.z,a.h,a.dap,a.copa)); }
-  addLabel(`Araucárias (~${ARAUCARIAS.length}, ${Math.min(...ARAUCARIAS.map(a=>a.h))}–${Math.max(...ARAUCARIAS.map(a=>a.h))} m, a confirmar)`, 15, H(15,27)+24, 27);
+  addLabel(`Araucárias (~${ARAUCARIAS.length}, ${Math.min(...ARAUCARIAS.map(a=>a.h))}–${Math.max(...ARAUCARIAS.map(a=>a.h))} m, a confirmar)`, 10.5, H(10.5,29)+25, 29);
   const S=P.salaoObra, busy=(X,Z)=> Math.hypot(X-PRACINHA.x,Z-PRACINHA.z)<5 || Math.hypot(X-PEDRA_PLATO.x,Z-PEDRA_PLATO.z)<4 || Math.hypot(X-ARVORE.x,Z-ARVORE.z)<6 || Math.hypot(X-PEDRA_IMENSA.x,Z-PEDRA_IMENSA.z)<5 || Math.abs(X+11)<2.5&&Z>-1&&Z<21 || (X>-24&&X<-7&&Z>7&&Z<30) || (Math.abs(X-S.cx)<S.largura/2+3 && Math.abs(Z-S.cz)<S.comprimento/2+3) || lakeDist(X,Z)<3 ||
     (Math.abs(X-BANHADO.x)<BANHADO.w/2+2 && Math.abs(Z-BANHADO.z)<BANHADO.d/2+2) || Math.abs(signedDist(RIVER,X,Z))<2.5;
   for(let i=0;i<120;i++){ // mata no barranco, ao longo do rio e além
     const X=-60+rnd()*60, Z=-46+rnd()*112; const dl=-signedDist(LEFT_EDGE,X,Z), dRio=signedDist(RIVER,X,Z);
     const onSlope = dl>2.5 && dl<12, nearRiver = Math.abs(dRio)<9, beyond = dRio<-3;
-    if(!(onSlope||nearRiver||beyond) || busy(X,Z) || dl<2.5) continue;
+    if(!(onSlope||nearRiver||beyond) || busy(X,Z) || dl<2.5 || (Z>14&&Z<48&&dl<6)) continue;
     if(Z<-18 && signedDist(TOE,X,Z)>-4) continue;
     veg.push(...blob(X,Z,2+rnd()*2.5,4+rnd()*6));
   }
