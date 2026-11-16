@@ -142,32 +142,47 @@ const DEFAULTS = {
   fogueira: { cx: 3.6, cz: 8.3, diametro: 5.4, profundidade: 0.55, alturaMureta: 0.3 },
   galpao: { cx: 3.6, frenteZ: 17.5, largura: 8.0, profundidade: 7.0, fundoBanheiros: 2.4, alturaTelhado: 3.0, alturaBase: 0.4 },
   barranco: { altura: 4.2, largura: 3.5 },
-  terreno: { quedaEsquerda: 4.5, subidaFundo: 0.015 },
-  casa: { largura: 13, fundo: 10, altura: 2.8, janelaFotos: 2 }
+  terreno: { quedaEsquerda: 10, subidaFundo: 0.015 },
+  casa: { largura: 10, fundo: 13, altura: 2.8, janelaFotos: 2 },
+  deck: { largura: 4, comprimento: 5, altura: 0.6 },
+  rampa: { largura: 3.5, comprimento: 18, desnivel: 3.0 },
+  salaoObra: { cx: -22, cz: -9, largura: 10, comprimento: 12 }
 };
 const META = {
   fogueira: { nome:'Fogueira (fosso)', conf:'media', nota:'Círculo escavado com mureta de blocos, banco interno e escada à esquerda. Diâmetro conferido de duas fotos diferentes.',
     campos:{diametro:'Diâmetro externo', profundidade:'Profundidade do piso', cx:'Centro, lado (X)', cz:'Centro, distância da janela (Z)'} },
-  galpao: { nome:'Salão (cozinha externa)', conf:'media', nota:'8 × 7 m informados. Parte aberta na frente; atrás da parede do fundo, dois banheiros com porta cada um para uma lateral externa. Profundidade dos banheiros é estimada.',
+  galpao: { nome:'Salão Superior (cozinha externa)', conf:'media', nota:'8 × 7 m informados. Parte aberta na frente; atrás da parede do fundo, dois banheiros com porta cada um para uma lateral externa. Profundidade dos banheiros é estimada.',
     campos:{largura:'Largura da frente', profundidade:'Profundidade total', fundoBanheiros:'Profundidade dos banheiros', alturaTelhado:'Altura do telhado', alturaBase:'Altura da base', frenteZ:'Distância da janela', cx:'Centro, lado (X)'} },
-  barranco: { nome:'Barranco (direita)', conf:'media', nota:'Talude que sobe até a caixa d’água e as araucárias.',
+  barranco: { nome:'Talude da rua (direita)', conf:'media', nota:'Sobe do platô até a rua, que passa do lado de fora, colada na cerca. A caixa d’água e as araucárias ficam no alto.',
     campos:{altura:'Altura', largura:'Largura da rampa'} },
-  terreno: { nome:'Platô gramado e talude esquerdo', conf:'baixa', nota:'O platô é quase plano e sobe de leve para o fundo. À esquerda, depois das canas, o terreno desce para a mata. Altura da queda é palpite.',
-    campos:{quedaEsquerda:'Queda à esquerda', subidaFundo:'Subida p/ fundo (m/m)'} },
-  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'13 × 10 m informados (13 m na parede voltada para o terreno, a confirmar). Duas janelas igualmente espaçadas nessa parede; as fotos saíram de uma delas (1 = esquerda, 2 = direita).',
-    campos:{largura:'Largura da parede', fundo:'Profundidade', altura:'Pé-direito', janelaFotos:'Janela das fotos (1 ou 2)'} },
+  terreno: { nome:'Barranco (esquerda) e área de baixo', conf:'baixa', nota:'Desce uns 10 m. Corre ao lado da casa, abre na diagonal ao lado da fogueira até a pedra grande na linha do Salão Superior e segue reto. Lá embaixo é plano: banhado, laguinho, salão em obra e o rio na divisa. Posições da área de baixo vêm do mapa e são aproximadas.',
+    campos:{quedaEsquerda:'Altura do barranco', subidaFundo:'Subida do platô (m/m)'} },
+  casa: { nome:'Casa (duas moradias)', conf:'media', nota:'13 × 10 m informados. Frente para a rua, dividida ao meio em duas casas, cada uma com porta para a rua. A parede lateral de 10 m dá para o terreno, com duas janelas; as fotos saíram de uma delas (1 = esquerda, 2 = direita).',
+    campos:{largura:'Parede lateral (janelas)', fundo:'Frente (para a rua)', altura:'Pé-direito', janelaFotos:'Janela das fotos (1 ou 2)'} },
+  deck: { nome:'Deck de madeira', conf:'baixa', nota:'4 × 5 m informados, ao lado da rampa dos carros, no fim da casa. Altura é palpite.',
+    campos:{largura:'Largura', comprimento:'Comprimento', altura:'Altura'} },
+  rampa: { nome:'Rampa dos carros e calçada', conf:'baixa', nota:'Desce da rua pela frente da casa até o platô. Portão grande de madeira no alto, junto à rua. Inclinação estimada.',
+    campos:{largura:'Largura', comprimento:'Comprimento', desnivel:'Desnível'} },
+  salaoObra: { nome:'Salão em construção (só fundação)', conf:'baixa', nota:'10 × 12 m informados, na área de baixo. Posição tirada do mapa.',
+    campos:{largura:'Largura', comprimento:'Comprimento', cx:'Posição lado (X)', cz:'Posição frente (Z)'} },
   camera: { nome:'Câmera da foto', conf:'media', nota:'Altura e inclinação calibradas pela picape, carro e pessoas.',
     campos:{altura:'Altura sobre o gramado', inclinacao:'Inclinação (graus)'} }
 };
 let P;
-try { P = JSON.parse(localStorage.getItem('chacara-v1')) || null; } catch(e) { P = null; }
+try { P = JSON.parse(localStorage.getItem('chacara-v2')) || null; } catch(e) { P = null; }
 if (!P || !P.fogueira) P = structuredClone(DEFAULTS);
-if (!('largura' in P.casa)) P.casa = structuredClone(DEFAULTS.casa);
-const save = () => { try { localStorage.setItem('chacara-v1', JSON.stringify(P)); } catch(e) {} };
+for (const k in DEFAULTS) if (!(k in P)) P[k]=structuredClone(DEFAULTS[k]);
+const save = () => { try { localStorage.setItem('chacara-v2', JSON.stringify(P)); } catch(e) {} };
 
 // Linhas medidas na foto (projetadas no chão)
-const LEFT_EDGE = [[-8,6.6],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-2.5,18],[-4,24],[-5.5,32],[-7,42]];
-const TOE = [[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,40]];
+// Crista do barranco: ao lado da casa, diagonal pelas canas até a pedra grande, depois reta.
+const LEFT_EDGE = [[-8.6,-40],[-8.6,-14],[-8.4,0],[-7.2,5],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-1.4,20],[-1.8,30],[-3,50]];
+// Pé do talude da rua (a rua corre por cima, do lado de fora da cerca)
+const TOE = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.8,18],[8.0,24],[7.5,30],[7.5,50]];
+// Rio: divisa do fundo (paralela à rua) e divisa de cima, com curva de ~90° (do mapa)
+const RIVER = [[-24,60],[-22.1,37.2],[-34,8],[-43.9,-15.5],[-30,-24],[-12,-32],[6,-36.2],[20,-38]];
+const LAKE = { x:-17, z:16, r:3.2, tipX:-10.5, tipZ:12.5 };
+const BANHADO = { x:-17, z:4, w:8, d:6 };
 
 /* ---------- utilidades ---------- */
 const sstep = (a,b,x) => { const t = Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); };
@@ -188,8 +203,20 @@ function H(X,Z){ // altura do terreno (antes da escala)
   h -= P.terreno.quedaEsquerda*sstep(0.3,7,dl) + Math.max(0,dl-7)*0.15;
   const dr = signedDist(TOE,X,Z);
   h += P.barranco.altura*sstep(0,P.barranco.largura,dr) + Math.max(0,dr-P.barranco.largura)*0.06;
-  if (Z<0.2) h = Math.max(h, 0); // sob a casa
+  // descida para o rio ao norte (atrás da casa), só dentro da propriedade
+  h -= P.terreno.quedaEsquerda*sstep(-22,-34,Z)*(1-sstep(-1,3,dr));
+  // área de baixo plana
+  h = Math.max(h, -P.terreno.quedaEsquerda - 0.02*Math.max(0,dl-14));
+  const dRio = Math.abs(signedDist(RIVER,X,Z));
+  if (h < -P.terreno.quedaEsquerda+1) h -= 0.9*(1-sstep(1.5,3.5,dRio));
+  if (lakeDist(X,Z)<0) h -= 0.8;
+  if (Math.abs(X-BANHADO.x)<BANHADO.w/2 && Math.abs(Z-BANHADO.z)<BANHADO.d/2) h -= 0.25;
   return h;
+}
+function lakeDist(X,Z){ // <0 dentro do laguinho (ponta arredondada perto do rio, afunilando para o barranco)
+  const L=LAKE, dx=L.tipX-L.x, dz=L.tipZ-L.z, len=Math.hypot(dx,dz);
+  let t=((X-L.x)*dx+(Z-L.z)*dz)/(len*len); t=Math.max(0,Math.min(1,t));
+  const r=L.r*(1-t*0.85); return Math.hypot(X-(L.x+t*dx), Z-(L.z+t*dz)) - r;
 }
 
 /* ---------- renderer / cena ---------- */
@@ -201,24 +228,24 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure
 stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#dfe3e4');
-scene.fog = new THREE.Fog('#dfe3e4', 70, 180);
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
-camera.position.set(-13, 17, -1);
+scene.fog = new THREE.Fog('#dfe3e4', 110, 260);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 700);
+camera.position.set(-42, 40, -52);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(3, 0, -12); controls.enableDamping = true; controls.maxPolarAngle = Math.PI*0.495;
+controls.target.set(-8, -4, -4); controls.enableDamping = true; controls.maxPolarAngle = Math.PI*0.495;
 
 scene.add(new THREE.HemisphereLight('#f3f4f0', '#8d8f86', 1.3));
 const sun = new THREE.DirectionalLight('#ffffff', 2.2);
 sun.position.set(-25, 35, 10); sun.castShadow = true;
 sun.shadow.mapSize.set(2048,2048);
-Object.assign(sun.shadow.camera,{left:-35,right:35,top:35,bottom:-35,near:1,far:120});
+Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:160});
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
-sun.target.position.set(3,0,-14); scene.add(sun, sun.target);
+sun.target.position.set(-8,0,-5); scene.add(sun, sun.target);
 
 const mat = (c, extra={}) => new THREE.MeshStandardMaterial({color:c, roughness:.92, metalness:0, ...extra});
 const M = {
   grass: null, wall: mat('#f1f0ea'), block: mat('#d9d8d1'), floor: mat('#c4c2b9'), stone: mat('#b9b7ae'),
-  wood: mat('#cfc7ba'), roof: mat('#9fa3a0'), tree: mat('#c3c9bf'), trunk: mat('#b3ada3'), house: mat('#ecebe6'), dark: mat('#5d605a')
+  wood: mat('#cfc7ba'), roof: mat('#9fa3a0'), tree: mat('#c3c9bf'), trunk: mat('#b3ada3'), house: mat('#ecebe6'), dark: mat('#5d605a'), road: mat('#b5b7b2'), water: mat('#9fb3bd',{roughness:.25}), marsh: mat('#b8bfae')
 };
 // textura de grade de 1 m
 function gridTex(){
@@ -255,7 +282,7 @@ function build(){
   world.scale.setScalar(P.escala);
 
   /* terreno */
-  const X0=-45, X1=55, Z0=-12, Z1=80, step=0.3;
+  const X0=-62, X1=45, Z0=-48, Z1=70, step=0.35;
   const nx=Math.round((X1-X0)/step), nz=Math.round((Z1-Z0)/step);
   const geo=new THREE.PlaneGeometry(X1-X0, Z1-Z0, nx, nz); geo.rotateX(-Math.PI/2);
   geo.translate((X0+X1)/2, 0, -(Z0+Z1)/2);
@@ -267,7 +294,7 @@ function build(){
   layers.terreno.add(terrain);
   // serra ao fundo
   const ridge=new THREE.Mesh(new THREE.CylinderGeometry(150,170,40,48,1,true,Math.PI*0.55,Math.PI*0.9), mat('#cdd1cd',{side:THREE.BackSide}));
-  ridge.position.set(0,5,-20); layers.terreno.add(ridge);
+  ridge.position.set(-8,0,-5); layers.terreno.add(ridge);
 
   /* fogueira */
   uPit.value.set(P.fogueira.cx*P.escala, -P.fogueira.cz*P.escala, (P.fogueira.diametro/2-0.1)*P.escala);
@@ -319,7 +346,7 @@ function build(){
   const ar=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.08,SD-bfd),M.roof); ar.position.set(ax,top+2.4,bfd/2); ar.rotation.z=-0.08; gg.add(ar);
   for (const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,2.4,0.1),M.dark); p.position.set(ax+1.4,top+1.2,bfd/2+sz*((SD-bfd)/2-0.1)); gg.add(p); }
   layers.estruturas.add(shadowy(gg));
-  addLabel(`Salão ${fmt(SW*P.escala)} × ${fmt(SD*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
+  addLabel(`Salão Superior ${fmt(SW*P.escala)} × ${fmt(SD*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
   addLabel('Banheiros', G.cx, gy+G.alturaBase+G.alturaTelhado+0.4, G.frenteZ+SD-bfd/2);
 
   /* caixa d'água, poste, cerca */
@@ -327,9 +354,59 @@ function build(){
   layers.estruturas.add(shadowy(tank)); addLabel('Caixa d’água',tX,H(tX,tZ)+1.7,tZ);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.14,7,12),M.trunk); pole.position.copy(v(8.2,3.5,2.8)); layers.estruturas.add(shadowy(pole));
   addLabel('Poste (posição aprox.)',8.2,7.4,2.8);
-  const fa=[-7.2,7.0], fb=[-3.9,8.3], fl=Math.hypot(fb[0]-fa[0],fb[1]-fa[1]);
-  const fence=box(fl,1.0,0.06,M.wood,(fa[0]+fb[0])/2,0.5+H((fa[0]+fb[0])/2,(fa[1]+fb[1])/2),(fa[1]+fb[1])/2, Math.atan2(fb[1]-fa[1],fb[0]-fa[0]));
-  layers.estruturas.add(shadowy(fence));
+  // segmento orientado: comprimento ao longo de (a->b) no chão, com inclinação
+  const seg3=(w,h,ax,ay,az,bx,by,bz,m)=>{ const d=v(bx,by,bz).sub(v(ax,ay,az)); const L=d.length();
+    const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,L),m); o.position.copy(v((ax+bx)/2,(ay+by)/2,(az+bz)/2));
+    o.rotation.set(-Math.atan2(d.y,Math.hypot(d.x,d.z)), Math.atan2(d.x,d.z), 0, 'YXZ'); return o; };
+  // rua (fora da propriedade) e cerca ao longo dela
+  for (let i=0;i<TOE.length-1;i++){
+    const [ax,az]=TOE[i],[bx,bz]=TOE[i+1], off=P.barranco.largura+0.6;
+    const len=Math.hypot(bx-ax,bz-az), nx=(bz-az)/len, nz=-(bx-ax)/len; // normal para a direita
+    const A=[ax+nx*off,az+nz*off], B=[bx+nx*off,bz+nz*off];
+    layers.estruturas.add(seg3(0.05,1.1,A[0],H(...A)+0.55,A[1],B[0],H(...B)+0.55,B[1],M.wood));
+    const A2=[A[0]+nx*3,A[1]+nz*3], B2=[B[0]+nx*3,B[1]+nz*3];
+    const road=seg3(5,0.12,A2[0],H(...A2)+0.03,A2[1],B2[0],H(...B2)+0.03,B2[1],M.road); road.receiveShadow=true; layers.estruturas.add(road);
+  }
+  addLabel('Rua (fora da cerca)', 16.5, H(16.5,-8)+0.8, -8);
+  // pedra grande na crista do barranco
+  const rk=new THREE.Mesh(new THREE.DodecahedronGeometry(1.7,1),M.stone); rk.scale.set(1.3,0.8,1.1); rk.position.copy(v(-2.8,H(-2.8,20.5)-0.1,20.5)); layers.estruturas.add(shadowy(rk));
+  addLabel('Pedra grande', -2.8, H(-2.8,20.5)+2.2, 20.5);
+  // deck, rampa, portão, calçada
+  { const C=P.casa, k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3, xr=xl+C.largura;
+    const Rr=P.rampa, rx=xr+1.4+Rr.largura/2, z0=0.5, z1=-Rr.comprimento+0.5;
+    layers.estruturas.add(shadowy(seg3(Rr.largura,0.25,rx,0.0,z0,rx,Rr.desnivel,z1,M.road)));
+    layers.estruturas.add(shadowy(seg3(0.15,1.0,rx-Rr.largura/2-0.08,-0.2,z0,rx-Rr.largura/2-0.08,Rr.desnivel-0.2,z1,M.block)));
+    const walk=box(1.3,0.12,C.fundo,M.block,xr+0.65,0.06,-C.fundo/2); layers.estruturas.add(shadowy(walk));
+    addLabel('Rampa dos carros', rx, Rr.desnivel*0.5+1.2, (z0+z1)/2);
+    const gate=box(Rr.largura+0.6,2.0,0.12,M.wood,rx,Rr.desnivel+1.0,z1-0.3); layers.estruturas.add(shadowy(gate));
+    addLabel('Portão de madeira', rx, Rr.desnivel+2.6, z1-0.3);
+    const Dk=P.deck, dx=xr-Dk.largura/2-0.2, dz=-C.fundo-0.3-Dk.comprimento/2;
+    const deck=box(Dk.largura,Dk.altura,Dk.comprimento,M.wood,dx,Dk.altura/2,dz); layers.estruturas.add(shadowy(deck));
+    addLabel(`Deck ${fmt(Dk.largura*P.escala)} × ${fmt(Dk.comprimento*P.escala)} m`, dx, Dk.altura+1, dz);
+  }
+  // área de baixo: salão em obra (fundação), laguinho, banhado, rio, rampa de pedestres
+  { const S=P.salaoObra, y=H(S.cx,S.cz);
+    const slab=box(S.largura,0.5,S.comprimento,M.block,S.cx,y+0.15,S.cz); layers.estruturas.add(shadowy(slab));
+    addLabel(`Salão em construção ${fmt(S.largura*P.escala)} × ${fmt(S.comprimento*P.escala)} m`, S.cx, y+1.6, S.cz);
+    const ly=-P.terreno.quedaEsquerda-0.35, shape=new THREE.Shape(), N=60;
+    for(let i=0;i<N;i++){
+      const a=i/N*Math.PI*2; let p=null;
+      for(let rr=0.1; rr<9; rr+=0.04){ const X=LAKE.x+Math.cos(a)*rr, Z=LAKE.z+Math.sin(a)*rr; if(lakeDist(X,Z)>0){ p=[X,Z]; break; } }
+      if(p){ i ? shape.lineTo(p[0],p[1]) : shape.moveTo(p[0],p[1]); }
+    }
+    const lake=new THREE.Mesh(new THREE.ShapeGeometry(shape),M.water); lake.rotation.x=-Math.PI/2; lake.position.y=ly; layers.estruturas.add(lake);
+    addLabel('Laguinho de peixes', LAKE.x, ly+1.5, LAKE.z);
+    const B=BANHADO, ban=box(B.w,0.02,B.d,M.marsh,B.x,H(B.x,B.z)+0.05,B.z); layers.estruturas.add(ban);
+    addLabel('Banhado (futuro tanque)', B.x, H(B.x,B.z)+1.2, B.z);
+    const wy=-P.terreno.quedaEsquerda-0.45;
+    for(let i=0;i<RIVER.length-1;i++){ const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];
+      layers.estruturas.add(seg3(2.6,0.02,ax,wy,az,bx,wy,bz,M.water)); }
+    addLabel('Rio (divisa)', -33, wy+1.2, 8);
+    const path=[[-4.5,8.6],[-6.5,10.5],[-8.5,12.6],[-10.5,14.6],[-12.5,16.5]];
+    for(let i=0;i<path.length-1;i++){ const [ax,az]=path[i],[bx,bz]=path[i+1];
+      layers.estruturas.add(shadowy(seg3(1.2,0.12,ax,H(ax,az)+0.08,az,bx,H(bx,bz)+0.08,bz,M.block))); }
+    addLabel('Rampa de pedestres', -8.5, H(-8.5,12.6)+1.4, 12.6);
+  }
 
   /* casa */
   const C=P.casa, hg=new THREE.Group();
@@ -345,7 +422,10 @@ function build(){
             ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),...P3(x0,C.altura,0.4-D)];
   rf.geometry.setAttribute('position',new THREE.Float32BufferAttribute(rv,3)); rf.geometry.computeVertexNormals(); rf.material=new THREE.MeshStandardMaterial({color:'#a9aca8',roughness:.9,side:THREE.DoubleSide});
   const win1=box(1.2,1.1,0.05,M.dark,xl+C.largura/3,1.55,0.02), win2=box(1.2,1.1,0.05,M.dark,xl+2*C.largura/3,1.55,0.02);
-  hg.add(main,rf,win1,win2); layers.casa.add(shadowy(hg));
+  const d1=box(0.05,2.1,0.9,M.dark,xl+C.largura+0.02,1.05,-C.fundo/4), d2=box(0.05,2.1,0.9,M.dark,xl+C.largura+0.02,1.05,-3*C.fundo/4);
+  const split=box(C.largura+0.9,0.06,0.08,M.dark,xl+C.largura/2,C.altura+0.85,-C.fundo/2);
+  hg.add(main,rf,win1,win2,d1,d2,split); layers.casa.add(shadowy(hg));
+  addLabel('Casa 1 · Casa 2 (portas para a rua)', xl+C.largura/2, C.altura+2.4, -C.fundo/2);
   addLabel('Janela das fotos',0,2.6,0.1);
 
   /* vegetação de referência */
@@ -359,8 +439,13 @@ function build(){
   const veg=[];
   veg.push(...palm(3.9,34,10));
   veg.push(...arauc(12.4,29,17), ...arauc(14.8,27,19), ...arauc(15.5,23,18), ...arauc(17,31,16));
-  for(let i=0;i<46;i++){ // mata na encosta esquerda e ao fundo
-    let X=-40+rnd()*45, Z=4+rnd()*60; if(-signedDist(LEFT_EDGE,X,Z)<4) continue;
+  const S=P.salaoObra, busy=(X,Z)=> (Math.abs(X-S.cx)<S.largura/2+3 && Math.abs(Z-S.cz)<S.comprimento/2+3) || lakeDist(X,Z)<3 ||
+    (Math.abs(X-BANHADO.x)<BANHADO.w/2+2 && Math.abs(Z-BANHADO.z)<BANHADO.d/2+2) || Math.abs(signedDist(RIVER,X,Z))<2.5;
+  for(let i=0;i<120;i++){ // mata no barranco, ao longo do rio e além
+    const X=-60+rnd()*60, Z=-46+rnd()*112; const dl=-signedDist(LEFT_EDGE,X,Z), dRio=signedDist(RIVER,X,Z);
+    const onSlope = dl>2.5 && dl<12, nearRiver = Math.abs(dRio)<9, beyond = dRio<-3;
+    if(!(onSlope||nearRiver||beyond) || busy(X,Z) || dl<2.5) continue;
+    if(Z<-18 && signedDist(TOE,X,Z)>-4) continue;
     veg.push(...blob(X,Z,2+rnd()*2.5,4+rnd()*6));
   }
   // touceiras de cana na borda
@@ -370,9 +455,10 @@ function build(){
   veg.forEach(m=>layers.vegetacao.add(shadowy(m)));
 
   // rótulos de terreno
-  addLabel(`Barranco ~${fmt(P.barranco.altura*P.escala)} m`, 10.6, H(10.6,14)+0.8, 14);
+  addLabel(`Talude da rua ~${fmt(P.barranco.altura*P.escala)} m`, 10.6, H(10.6,14)+0.8, 14);
   addLabel('Platô gramado', -0.5, 0.4, 13);
-  addLabel(`Talude p/ mata ~${fmt(P.terreno.quedaEsquerda*P.escala)} m`, -5.5, H(-5.5,12)+1.2, 12);
+  addLabel(`Barranco ~${fmt(P.terreno.quedaEsquerda*P.escala)} m`, -10, H(-10,2)+1.2, 2);
+  addLabel('Área de baixo', -26, H(-26,22)+1, 22);
   refreshLayerVis();
   ruler.reproject();
 }
@@ -467,7 +553,7 @@ function setMode(m){
     const s=P.escala; const p=new THREE.Vector3(1.5*s,0,-3*s);
     camera.position.set(p.x, groundAt(p.x,p.z)+1.6, p.z); look.yaw=0; look.pitch=-0.05; camera.fov=65; camera.updateProjectionMatrix();
   }
-  if(m==='orbit'){ camera.fov=55; camera.updateProjectionMatrix(); if(camera.position.y<4){ camera.position.set(-13,17,-1); } controls.target.set(3*P.escala,0,-12*P.escala); }
+  if(m==='orbit'){ camera.fov=55; camera.updateProjectionMatrix(); if(camera.position.y<4){ camera.position.set(-42*P.escala,40*P.escala,-52*P.escala); } controls.target.set(-8*P.escala,-4*P.escala,-4*P.escala); }
   if(m==='photo') setPhotoCam();
   resize();
 }
