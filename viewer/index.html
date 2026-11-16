@@ -143,7 +143,7 @@ const DEFAULTS = {
   galpao: { cx: 3.6, frenteZ: 17.5, largura: 6.0, profundidade: 4.5, alturaTelhado: 3.0, alturaBase: 0.4 },
   barranco: { altura: 4.2, largura: 3.5 },
   terreno: { quedaEsquerda: 4.5, subidaFundo: 0.015 },
-  casa: { larguraEsq: 10, larguraDir: 4, fundo: 8, altura: 2.8 }
+  casa: { largura: 10, fundo: 8, altura: 2.8, janelaFotos: 2 }
 };
 const META = {
   fogueira: { nome:'Fogueira (fosso)', conf:'media', nota:'Círculo escavado com mureta de blocos, banco interno e escada à esquerda. Diâmetro conferido de duas fotos diferentes.',
@@ -154,14 +154,15 @@ const META = {
     campos:{altura:'Altura', largura:'Largura da rampa'} },
   terreno: { nome:'Platô gramado e talude esquerdo', conf:'baixa', nota:'O platô é quase plano e sobe de leve para o fundo. À esquerda, depois das canas, o terreno desce para a mata. Altura da queda é palpite.',
     campos:{quedaEsquerda:'Queda à esquerda', subidaFundo:'Subida p/ fundo (m/m)'} },
-  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'Não aparece nas fotos. Volume só para referência de posição.',
-    campos:{larguraEsq:'Até a esquerda da janela', larguraDir:'Até a direita da janela', fundo:'Profundidade', altura:'Pé-direito'} },
+  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'Bloco simples. A parede voltada para o terreno tem duas janelas igualmente espaçadas; as fotos saíram de uma delas (1 = esquerda, 2 = direita). Largura e profundidade ainda são palpites.',
+    campos:{largura:'Largura da parede', fundo:'Profundidade', altura:'Pé-direito', janelaFotos:'Janela das fotos (1 ou 2)'} },
   camera: { nome:'Câmera da foto', conf:'media', nota:'Altura e inclinação calibradas pela picape, carro e pessoas.',
     campos:{altura:'Altura sobre o gramado', inclinacao:'Inclinação (graus)'} }
 };
 let P;
 try { P = JSON.parse(localStorage.getItem('chacara-v0')) || null; } catch(e) { P = null; }
 if (!P || !P.fogueira) P = structuredClone(DEFAULTS);
+if (!('largura' in P.casa)) P.casa = structuredClone(DEFAULTS.casa);
 const save = () => { try { localStorage.setItem('chacara-v0', JSON.stringify(P)); } catch(e) {} };
 
 // Linhas medidas na foto (projetadas no chão)
@@ -325,19 +326,19 @@ function build(){
 
   /* casa */
   const C=P.casa, hg=new THREE.Group();
-  const main=box(C.larguraEsq+C.larguraDir,C.altura,C.fundo,M.house,(C.larguraDir-C.larguraEsq)/2,C.altura/2,-C.fundo/2);
+  const k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3; // borda esquerda da parede
+  const main=box(C.largura,C.altura,C.fundo,M.house,xl+C.largura/2,C.altura/2,-C.fundo/2);
   const ridgeH=1.6;
   const rf=new THREE.Mesh(new THREE.BufferGeometry(),M.roof);
-  const W=C.larguraEsq+C.larguraDir+0.8, D=C.fundo+0.8, x0=-C.larguraEsq-0.4;
+  const W=C.largura+0.8, D=C.fundo+0.8, x0=xl-0.4;
   const P3 = (X,y,Z)=>[X,y,-Z];
   const rv=[...P3(x0,C.altura,0.4),...P3(x0+W,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),
             ...P3(x0,C.altura,0.4),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0,C.altura+ridgeH,0.4-D/2),
             ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),
             ...P3(x0,C.altura+ridgeH,0.4-D/2),...P3(x0+W,C.altura,0.4-D),...P3(x0,C.altura,0.4-D)];
   rf.geometry.setAttribute('position',new THREE.Float32BufferAttribute(rv,3)); rf.geometry.computeVertexNormals(); rf.material=new THREE.MeshStandardMaterial({color:'#a9aca8',roughness:.9,side:THREE.DoubleSide});
-  const wing=box(C.larguraEsq-2.6,C.altura,3.5,M.house,-(2.6+C.larguraEsq)/2,C.altura/2,1.75);
-  const win=box(1.2,1.1,0.05,M.dark,0,1.55,0.02);
-  hg.add(main,rf,wing,win); layers.casa.add(shadowy(hg));
+  const win1=box(1.2,1.1,0.05,M.dark,xl+C.largura/3,1.55,0.02), win2=box(1.2,1.1,0.05,M.dark,xl+2*C.largura/3,1.55,0.02);
+  hg.add(main,rf,win1,win2); layers.casa.add(shadowy(hg));
   addLabel('Janela das fotos',0,2.6,0.1);
 
   /* vegetação de referência */
