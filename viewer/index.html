@@ -140,30 +140,30 @@ const DEFAULTS = {
   escala: 1.0,
   camera: { altura: 1.45, inclinacao: -8.4, fovVertical: 42.7 },
   fogueira: { cx: 3.6, cz: 8.3, diametro: 5.4, profundidade: 0.55, alturaMureta: 0.3 },
-  galpao: { cx: 3.6, frenteZ: 17.5, largura: 6.0, profundidade: 4.5, alturaTelhado: 3.0, alturaBase: 0.4 },
+  galpao: { cx: 3.6, frenteZ: 17.5, largura: 8.0, profundidade: 7.0, fundoBanheiros: 2.4, alturaTelhado: 3.0, alturaBase: 0.4 },
   barranco: { altura: 4.2, largura: 3.5 },
   terreno: { quedaEsquerda: 4.5, subidaFundo: 0.015 },
-  casa: { largura: 10, fundo: 8, altura: 2.8, janelaFotos: 2 }
+  casa: { largura: 13, fundo: 10, altura: 2.8, janelaFotos: 2 }
 };
 const META = {
   fogueira: { nome:'Fogueira (fosso)', conf:'media', nota:'Círculo escavado com mureta de blocos, banco interno e escada à esquerda. Diâmetro conferido de duas fotos diferentes.',
     campos:{diametro:'Diâmetro externo', profundidade:'Profundidade do piso', cx:'Centro, lado (X)', cz:'Centro, distância da janela (Z)'} },
-  galpao: { nome:'Galpão', conf:'baixa', nota:'Só aparece de frente em uma foto. Fundo e lateral direita são suposições.',
-    campos:{largura:'Largura da frente', profundidade:'Profundidade', alturaTelhado:'Altura do telhado', alturaBase:'Altura da base', frenteZ:'Distância da janela', cx:'Centro, lado (X)'} },
+  galpao: { nome:'Salão (cozinha externa)', conf:'media', nota:'8 × 7 m informados. Parte aberta na frente; atrás da parede do fundo, dois banheiros com porta cada um para uma lateral externa. Profundidade dos banheiros é estimada.',
+    campos:{largura:'Largura da frente', profundidade:'Profundidade total', fundoBanheiros:'Profundidade dos banheiros', alturaTelhado:'Altura do telhado', alturaBase:'Altura da base', frenteZ:'Distância da janela', cx:'Centro, lado (X)'} },
   barranco: { nome:'Barranco (direita)', conf:'media', nota:'Talude que sobe até a caixa d’água e as araucárias.',
     campos:{altura:'Altura', largura:'Largura da rampa'} },
   terreno: { nome:'Platô gramado e talude esquerdo', conf:'baixa', nota:'O platô é quase plano e sobe de leve para o fundo. À esquerda, depois das canas, o terreno desce para a mata. Altura da queda é palpite.',
     campos:{quedaEsquerda:'Queda à esquerda', subidaFundo:'Subida p/ fundo (m/m)'} },
-  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'Bloco simples. A parede voltada para o terreno tem duas janelas igualmente espaçadas; as fotos saíram de uma delas (1 = esquerda, 2 = direita). Largura e profundidade ainda são palpites.',
+  casa: { nome:'Casa (de onde saíram as fotos)', conf:'baixa', nota:'13 × 10 m informados (13 m na parede voltada para o terreno, a confirmar). Duas janelas igualmente espaçadas nessa parede; as fotos saíram de uma delas (1 = esquerda, 2 = direita).',
     campos:{largura:'Largura da parede', fundo:'Profundidade', altura:'Pé-direito', janelaFotos:'Janela das fotos (1 ou 2)'} },
   camera: { nome:'Câmera da foto', conf:'media', nota:'Altura e inclinação calibradas pela picape, carro e pessoas.',
     campos:{altura:'Altura sobre o gramado', inclinacao:'Inclinação (graus)'} }
 };
 let P;
-try { P = JSON.parse(localStorage.getItem('chacara-v0')) || null; } catch(e) { P = null; }
+try { P = JSON.parse(localStorage.getItem('chacara-v1')) || null; } catch(e) { P = null; }
 if (!P || !P.fogueira) P = structuredClone(DEFAULTS);
 if (!('largura' in P.casa)) P.casa = structuredClone(DEFAULTS.casa);
-const save = () => { try { localStorage.setItem('chacara-v0', JSON.stringify(P)); } catch(e) {} };
+const save = () => { try { localStorage.setItem('chacara-v1', JSON.stringify(P)); } catch(e) {} };
 
 // Linhas medidas na foto (projetadas no chão)
 const LEFT_EDGE = [[-8,6.6],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-2.5,18],[-4,24],[-5.5,32],[-7,42]];
@@ -299,21 +299,28 @@ function build(){
   /* galpão */
   const G=P.galpao, gg=new THREE.Group(); const gy=H(G.cx,G.frenteZ+G.profundidade/2);
   gg.position.copy(v(G.cx,gy,G.frenteZ+G.profundidade/2));
-  const base=new THREE.Mesh(new THREE.BoxGeometry(G.largura+0.6,G.alturaBase+0.4,G.profundidade+0.4),M.stone); base.position.y=(G.alturaBase-0.4)/2;
-  gg.add(base);
-  const top=G.alturaBase, postH=G.alturaTelhado;
-  for (const sx of [-1,1]) for (const sz of [-1,1]){
+  const top=G.alturaBase, postH=G.alturaTelhado, SW=G.largura, SD=G.profundidade, bfd=Math.min(G.fundoBanheiros, SD-1);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(SW+0.4,G.alturaBase+0.4,SD+0.4),M.stone); base.position.y=(G.alturaBase-0.4)/2; gg.add(base);
+  // pilares da frente e das laterais da parte aberta
+  for (const sx of [-1,1]) for (const zz of [SD/2-0.15, -SD/2+bfd+0.15]){
     const p=new THREE.Mesh(new THREE.BoxGeometry(0.25,postH,0.25),M.wood);
-    p.position.set(sx*(G.largura/2-0.15), top+postH/2, sz*(G.profundidade/2-0.15)); gg.add(p);
+    p.position.set(sx*(SW/2-0.15), top+postH/2, zz); gg.add(p);
   }
-  const backW=G.largura*0.78; const bw=new THREE.Mesh(new THREE.BoxGeometry(backW,postH,0.2),M.wall); bw.position.set(-G.largura*0.02, top+postH/2, -(G.profundidade/2-0.1)); gg.add(bw);
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(G.largura+0.6,0.16,G.profundidade+0.8),M.roof); roof.position.set(0,top+postH+0.08,0.1); roof.rotation.x=-0.035; gg.add(roof);
-  // anexo metálico à direita
-  const ax=G.largura/2+1.6;
-  const ar=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.08,G.profundidade),M.roof); ar.position.set(ax,top+2.4,0); ar.rotation.z=-0.08; gg.add(ar);
-  for (const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,2.4,0.1),M.dark); p.position.set(ax+1.4,top+1.2,sz*(G.profundidade/2-0.1)); gg.add(p); }
+  // bloco dos banheiros atrás da parede do fundo do salão
+  const bz=-SD/2+bfd/2;
+  const bath=new THREE.Mesh(new THREE.BoxGeometry(SW-0.1,postH,bfd),M.wall); bath.position.set(0,top+postH/2,bz); gg.add(bath);
+  const div=new THREE.Mesh(new THREE.BoxGeometry(0.06,postH*0.9,bfd*0.98),M.dark); div.position.set(0,top+postH*0.45,bz); div.visible=false; gg.add(div);
+  for (const sx of [-1,1]){ // porta de cada banheiro na lateral externa
+    const d=new THREE.Mesh(new THREE.BoxGeometry(0.04,2.1,0.8),M.dark); d.position.set(sx*(SW/2-0.03),top+1.05,bz); gg.add(d);
+  }
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(SW+0.6,0.16,SD+0.8),M.roof); roof.position.set(0,top+postH+0.08,0.1); roof.rotation.x=-0.035; gg.add(roof);
+  // anexo metálico à direita (visto na foto)
+  const ax=SW/2+1.6;
+  const ar=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.08,SD-bfd),M.roof); ar.position.set(ax,top+2.4,bfd/2); ar.rotation.z=-0.08; gg.add(ar);
+  for (const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,2.4,0.1),M.dark); p.position.set(ax+1.4,top+1.2,bfd/2+sz*((SD-bfd)/2-0.1)); gg.add(p); }
   layers.estruturas.add(shadowy(gg));
-  addLabel(`Galpão ${fmt(G.largura*P.escala)} × ${fmt(G.profundidade*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
+  addLabel(`Salão ${fmt(SW*P.escala)} × ${fmt(SD*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
+  addLabel('Banheiros', G.cx, gy+G.alturaBase+G.alturaTelhado+0.4, G.frenteZ+SD-bfd/2);
 
   /* caixa d'água, poste, cerca */
   const tX=12.6,tZ=26, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
