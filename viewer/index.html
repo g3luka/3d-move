@@ -58,6 +58,10 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
 .hint{font-size:12px;color:var(--muted);line-height:1.45;margin:0}
 .lbl{position:fixed;transform:translate(-50%,-100%);font:500 11px var(--font-ui);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;pointer-events:none;white-space:nowrap;z-index:3}
 .lbl.m{font-family:var(--font-data);background:var(--accent);color:var(--accent-fg);border-color:transparent}
+#editSec .sel{font-weight:600;font-size:13px}
+#editSec .tool-row button{border:1px solid var(--line)}
+#editSec input[type=range]{width:110px;accent-color:var(--accent)}
+.brush{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
 #pad{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:none;grid-template-columns:repeat(3,44px);gap:4px;z-index:5}
 #pad button{background:var(--panel);border:1px solid var(--line);height:44px;padding:0;font-size:16px}
 #togglePanel{display:none}
@@ -77,12 +81,13 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
 <img id="overlay" alt="Foto original tirada da janela, com pessoas desfocadas" hidden src="fotos/janela.jpg">
 
 <div class="bar">
-  <div class="brand"><h1>Chácara · maquete v6</h1><span class="status">aguardando aprovação</span></div>
+  <div class="brand"><h1>Chácara · maquete v8</h1><span class="status">aguardando aprovação</span></div>
   <div class="tools" role="toolbar" aria-label="Modos de navegação">
     <button id="mOrbit" aria-pressed="true">Órbita</button>
     <button id="mWalk" aria-pressed="false">Andar</button>
     <button id="mPhoto" aria-pressed="false">Vista da janela</button>
     <button id="mRuler" aria-pressed="false">Régua</button>
+    <button id="mEdit" aria-pressed="false">Editar</button>
     <span class="op" id="opWrap" hidden><label for="opacity">Foto</label><input id="opacity" type="range" min="0" max="1" step="0.05" value="0.5"></span>
   </div>
 </div>
@@ -97,6 +102,25 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
   <div id="panelBody">
     <div class="sec">
       <p class="hint" id="modeHint">Arraste para girar, role para aproximar, botão direito para deslocar.</p>
+    </div>
+    <div class="sec" id="editSec" hidden>
+      <h3>Editar</h3>
+      <div class="row tool-row" role="group" aria-label="Ferramenta">
+        <button id="tMove" aria-pressed="true">Mover</button><button id="tRot" aria-pressed="false">Girar</button><button id="tScale" aria-pressed="false">Esticar</button><button id="tTerrain" aria-pressed="false">Relevo</button>
+      </div>
+      <p class="hint" id="editHint">Clique num elemento para selecionar. Arraste as alças para mover, girar ou esticar. Clique no vazio para soltar.</p>
+      <div id="selBox" hidden>
+        <div class="sel" id="selName"></div>
+        <div class="fields" id="selFields"></div>
+        <div class="row"><button class="btn-line" id="bGround">Assentar no chão</button><button class="btn-line" id="bResetEl">Voltar ao original</button><button class="btn-line" id="bHide">Remover</button></div>
+      </div>
+      <div id="terrainBox" hidden>
+        <div class="row tool-row" role="group" aria-label="Pincel de relevo"><button id="bUp" aria-pressed="true">Subir</button><button id="bDown" aria-pressed="false">Baixar</button><button id="bFlat" aria-pressed="false">Aplainar</button></div>
+        <label class="brush">Raio <input id="bRad" type="range" min="1" max="12" step="0.5" value="4"><span id="bRadV">4 m</span></label>
+        <label class="brush">Força <input id="bStr" type="range" min="0.02" max="0.5" step="0.02" value="0.12"></label>
+      </div>
+      <div class="row"><button class="btn-line" id="bUndo">Desfazer</button><button class="btn-line" id="bShowAll">Mostrar removidos</button><button class="btn-line" id="bClearEdits">Limpar edições</button></div>
+      <p class="hint" id="editInfo"></p>
     </div>
     <div class="sec" id="rulerSec">
       <h3>Régua</h3>
@@ -118,7 +142,7 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
     <div class="sec">
       <h3>Exportar</h3>
       <p class="hint">Copia os parâmetros atuais da cena. Cole na conversa se ajustar algo aqui.</p>
-      <div class="row"><button id="copyJson" class="btn-line">Copiar parâmetros</button><button id="resetParams" class="btn-line">Restaurar v0</button></div>
+      <div class="row"><button id="copyJson" class="btn-line">Copiar parâmetros</button><button id="resetParams" class="btn-line">Restaurar original</button></div>
       <textarea id="jsonOut" hidden readonly style="width:100%;height:120px;font:11px var(--font-data);background:transparent;color:var(--fg);border:1px solid var(--line)"></textarea>
     </div>
     <div class="sec">
@@ -134,6 +158,7 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 /* ---------- Parâmetros da cena (metros). X = direita, Z = à frente da janela. ---------- */
 const DEFAULTS = {
@@ -146,7 +171,8 @@ const DEFAULTS = {
   casa: { largura: 10, fundo: 13, altura: 2.8, janelaFotos: 2 },
   deck: { largura: 4, comprimento: 5, altura: 0.6 },
   rampa: { largura: 3.5, comprimento: 18, desnivel: 3.0 },
-  salaoObra: { cx: -22, cz: -9, largura: 10, comprimento: 12 }
+  salaoObra: { cx: -22, cz: -9, largura: 10, comprimento: 12 },
+  edicoes: {}, relevo: {}
 };
 const META = {
   fogueira: { nome:'Fogueira (fosso)', conf:'media', nota:'Círculo escavado com mureta de blocos, banco interno e escada à esquerda. Diâmetro conferido de duas fotos diferentes.',
@@ -176,7 +202,7 @@ const save = () => { try { localStorage.setItem('chacara-v2', JSON.stringify(P))
 
 // Linhas medidas na foto (projetadas no chão)
 // Crista do barranco: ao lado da casa, diagonal pelas canas até a pedra grande, depois reta.
-const LEFT_EDGE = [[-8.6,-40],[-8.6,-14],[-8.4,0],[-7.2,5],[-5.2,7.9],[-3.8,8.7],[-2.3,11.5],[-1.6,14],[-1.4,20],[-1.8,30],[-3,50]];
+const LEFT_EDGE = [[-8.6,-40],[-8.6,-14],[-8.4,0],[-7.2,5],[-5.2,7.9],[-3.8,8.7],[-4.6,12],[-6,17],[-7.8,22],[-8.2,27],[-8.4,35],[-8.6,50]];
 // Pé do talude da rua (a rua corre por cima, do lado de fora da cerca)
 // pé do talude: ao lado do Salão Superior faz duas curvas (passa por trás do salão e volta a ficar paralelo à rua)
 const TOE = [[13,-45],[12.4,-20],[11.5,-2],[10.5,6],[9.6,12],[8.9,18],[8.7,24],[8.4,27.4],[6.5,28.4],[4,28.8],[3.3,30.5],[3.2,50]];
@@ -186,11 +212,12 @@ const xAt=(poly,Z)=>{ for(let i=0;i<poly.length-1;i++){ const [ax,az]=poly[i],[b
 // Rio: divisa do fundo (paralela à rua) e divisa de cima, com curva de ~90° (do mapa)
 const RIVER = [[-24,60],[-22.1,37.2],[-34,8],[-43.9,-15.5],[-30,-24],[-12,-32],[6,-36.2],[20,-38]];
 const LAKE = { x:-19, z:17, r:3.4, tipX:-13.8, tipZ:14.2 };
-const PRACINHA = { x:-15, z:21.5, w:5, d:4.5 };
+const PRACINHA = { x:-16.6, z:22, w:5, d:4.5 };
 const PEDRA_PLATO = { x:-13.4, z:11.6 };
 const ARVORE = { x:-15.6, z:12.6, tronco:0.9, altura:18, copa:6.5 };
-const PEDRA_IMENSA = { x:-11.8, z:25 };
+const PEDRA_IMENSA = { x:-14.8, z:26.2 };
 const ARAUCARIAS = [ {x:11.2,z:25.2,h:22,dap:0.7,copa:10}, {x:12.4,z:29.6,h:24,dap:0.8,copa:11}, {x:9.6,z:33.0,h:21,dap:0.65,copa:9}, {x:6.6,z:35.5,h:20,dap:0.6,copa:9}, {x:10.4,z:21.0,h:19,dap:0.55,copa:8} ];
+const PERGOLADO = { largura:2.0, comprimento:6.0, afastamento:5.0 };
 const ESTAC = { divisaZ:46, largura:7 };
 const BANHADO = { x:-17, z:4, w:8, d:6 };
 
@@ -207,7 +234,14 @@ function signedDist(poly, X, Z){ // positivo à direita do sentido da linha (Z c
   }
   return best*sign;
 }
-function H(X,Z){ // altura do terreno (antes da escala)
+// ajustes de relevo feitos à mão: grade de 1 m sobre todo o terreno
+const RX0=-62, RZ0=-48, RNX=108, RNZ=119, RG=new Float32Array(RNX*RNZ);
+function loadRG(){ RG.fill(0); for(const [k,val] of Object.entries(P.relevo||{})){ const [i,j]=k.split(',').map(Number); if(i>=0&&i<RNX&&j>=0&&j<RNZ) RG[j*RNX+i]=val; } }
+function storeRG(){ const o={}; for(let j=0;j<RNZ;j++) for(let i=0;i<RNX;i++){ const val=RG[j*RNX+i]; if(Math.abs(val)>=0.01) o[i+','+j]=Math.round(val*100)/100; } P.relevo=o; }
+function relevoAt(X,Z){ const fx=X-RX0, fz=Z-RZ0, i=Math.floor(fx), j=Math.floor(fz); if(i<0||j<0||i>=RNX-1||j>=RNZ-1) return 0;
+  const tx=fx-i, tz=fz-j, a=RG[j*RNX+i], b=RG[j*RNX+i+1], c=RG[(j+1)*RNX+i], d=RG[(j+1)*RNX+i+1]; return (a*(1-tx)+b*tx)*(1-tz)+(c*(1-tx)+d*tx)*tz; }
+function H(X,Z){ return H0(X,Z)+relevoAt(X,Z); }
+function H0(X,Z){ // altura do terreno sem os ajustes manuais (antes da escala)
   let h = P.terreno.subidaFundo*Math.max(0,Z-6);
   const dl = -signedDist(LEFT_EDGE,X,Z); // positivo para a esquerda (fora do platô)
   h -= P.terreno.quedaEsquerda*sstep(0.3,7,dl) + Math.max(0,dl-7)*0.15;
@@ -284,10 +318,35 @@ const v = (X,y,Z) => new THREE.Vector3(X,y,-Z);
 function box(w,h,d,m,X,y,Z,rotY=0){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.copy(v(X,y,Z)); b.rotation.y=rotY; return b; }
 
 function clearGroup(g){ g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); g.clear(); }
-function addLabel(text, X, y, Z){ const el=document.createElement('div'); el.className='lbl'; el.textContent=text; document.body.appendChild(el); labels.push({el,pos:v(X,y,Z),layer:'rotulos'}); }
+function addLabel(text, X, y, Z){ const el=document.createElement('div'); el.className='lbl'; el.textContent=text; document.body.appendChild(el); labels.push({el,pos:v(X,y,Z),layer:'rotulos',owner:CUR}); }
+// Cada elemento editável vira um grupo: tudo o que é criado entre EL('id',...) e EL() entra nele (inclusive o rótulo).
+let CUR=null; const ELS={};
+function EL(id,nome,layer='estruturas'){ if(!id){ CUR=null; return; } let g=ELS[id]; if(!g){ g=new THREE.Group(); g.userData={elId:id,nome}; ELS[id]=g; THREE.Group.prototype.add.call(layers[layer],g); } CUR=g; }
+for(const L of Object.values(layers)) L.add=function(...o){ if(CUR) return CUR.add(...o); return THREE.Group.prototype.add.apply(this,o); };
+function finalizeEls(){
+  world.updateMatrixWorld(true); const bb=new THREE.Box3(), c=new THREE.Vector3();
+  for(const g of Object.values(ELS)){
+    bb.setFromObject(g); bb.getCenter(c); const piv=new THREE.Vector3(c.x,bb.min.y,c.z).divideScalar(P.escala);
+    g.children.forEach(ch=>ch.position.sub(piv)); g.position.copy(piv); g.userData.base=piv.clone();
+    labels.forEach(l=>{ if(l.owner===g) l.pos.sub(piv); });
+    applyEdit(g);
+  }
+}
+function applyEdit(g){
+  const E=(P.edicoes||{})[g.userData.elId]||{}, b=g.userData.base, d=E.d||[0,0,0], r=E.r||[0,0,0], sc=E.s||[1,1,1];
+  g.position.set(b.x+d[0],b.y+d[1],b.z+d[2]); g.rotation.set(r[0],r[1],r[2]); g.scale.set(sc[0],sc[1],sc[2]); g.visible=!E.oculto;
+  if(g.userData.elId==='fogueira'){ const s=P.escala; uPit.value.set(g.position.x*s, g.position.z*s, g.visible?(P.fogueira.diametro/2-0.1)*s*Math.min(sc[0],sc[2]):0); }
+}
+function readEdit(g){
+  const b=g.userData.base, r3=n=>Math.round(n*1000)/1000, prev=(P.edicoes||{})[g.userData.elId]||{};
+  const E={d:[r3(g.position.x-b.x),r3(g.position.y-b.y),r3(g.position.z-b.z)], r:[r3(g.rotation.x),r3(g.rotation.y),r3(g.rotation.z)], s:[r3(g.scale.x),r3(g.scale.y),r3(g.scale.z)]};
+  if(prev.oculto) E.oculto=true;
+  P.edicoes=P.edicoes||{}; P.edicoes[g.userData.elId]=E;
+  if(g.userData.elId==='fogueira') applyEdit(g);
+}
 
 function build(){
-  Object.values(layers).forEach(clearGroup);
+  Object.values(layers).forEach(clearGroup); CUR=null; for(const k in ELS) delete ELS[k];
   labels.forEach(l=>l.el.remove()); labels.length=0;
   world.scale.setScalar(P.escala);
 
@@ -308,6 +367,7 @@ function build(){
 
   /* fogueira */
   uPit.value.set(P.fogueira.cx*P.escala, -P.fogueira.cz*P.escala, (P.fogueira.diametro/2-0.1)*P.escala);
+  EL('fogueira','Fogueira','estruturas');
   const f=P.fogueira, R=f.diametro/2, g=new THREE.Group(); g.position.copy(v(f.cx,0,f.cz));
   const ringH=f.profundidade+f.alturaMureta+0.05;
   const outer=new THREE.Mesh(new THREE.CylinderGeometry(R,R,ringH,72,1,true),M.block); outer.position.y=-f.profundidade+ringH/2-0.05;
@@ -331,9 +391,10 @@ function build(){
   const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(0.8,1),M.stone); rock.scale.set(1.5,0.55,0.9);
   rock.position.set(Math.cos(Math.PI*0.86)*(R-1.0), -f.profundidade+0.35, Math.sin(Math.PI*0.86)*(R-1.0)); g.add(rock);
   layers.estruturas.add(shadowy(g));
-  addLabel(`Fogueira Ø ${fmt(f.diametro*P.escala)} m`, f.cx, 1.2, f.cz);
+  addLabel(`Fogueira Ø ${fmt(f.diametro*P.escala)} m`, f.cx, 1.2, f.cz); EL();
 
   /* galpão */
+  EL('salao','Salão Superior','estruturas');
   const G=P.galpao, gg=new THREE.Group(); const gy=H(G.cx,G.frenteZ+G.profundidade/2);
   gg.position.copy(v(G.cx,gy,G.frenteZ+G.profundidade/2));
   const top=G.alturaBase, postH=G.alturaTelhado, SW=G.largura, SD=G.profundidade, bfd=Math.min(G.fundoBanheiros, SD-1);
@@ -357,18 +418,19 @@ function build(){
   for (const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,2.4,0.1),M.dark); p.position.set(ax+1.4,top+1.2,bfd/2+sz*((SD-bfd)/2-0.1)); gg.add(p); }
   layers.estruturas.add(shadowy(gg));
   addLabel(`Salão Superior ${fmt(SW*P.escala)} × ${fmt(SD*P.escala)} m`, G.cx, gy+G.alturaBase+G.alturaTelhado+0.8, G.frenteZ);
-  addLabel('Banheiros', G.cx, gy+G.alturaBase+G.alturaTelhado+0.4, G.frenteZ+SD-bfd/2);
+  addLabel('Banheiros', G.cx, gy+G.alturaBase+G.alturaTelhado+0.4, G.frenteZ+SD-bfd/2); EL();
 
   /* caixa d'água, poste, cerca */
-  const tX=8.0,tZ=30.8, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
-  layers.estruturas.add(shadowy(tank)); addLabel('Caixa d’água',tX,H(tX,tZ)+1.7,tZ);
-  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.14,7,12),M.trunk); pole.position.copy(v(8.2,3.5,2.8)); layers.estruturas.add(shadowy(pole));
-  addLabel('Poste (posição aprox.)',8.2,7.4,2.8);
+  EL('caixa','Caixa d’água'); const tX=8.0,tZ=30.8, tank=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.62,1.0,32),M.block); tank.position.copy(v(tX,H(tX,tZ)+0.5,tZ));
+  layers.estruturas.add(shadowy(tank)); addLabel('Caixa d’água',tX,H(tX,tZ)+1.7,tZ); EL();
+  EL('poste','Poste'); const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.14,7,12),M.trunk); pole.position.copy(v(8.2,3.5,2.8)); layers.estruturas.add(shadowy(pole));
+  addLabel('Poste (posição aprox.)',8.2,7.4,2.8); EL();
   // segmento orientado: comprimento ao longo de (a->b) no chão, com inclinação
   const seg3=(w,h,ax,ay,az,bx,by,bz,m)=>{ const d=v(bx,by,bz).sub(v(ax,ay,az)); const L=d.length();
     const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,L),m); o.position.copy(v((ax+bx)/2,(ay+by)/2,(az+bz)/2));
     o.rotation.set(-Math.atan2(d.y,Math.hypot(d.x,d.z)), Math.atan2(d.x,d.z), 0, 'YXZ'); return o; };
   // rua (fora da propriedade) e cerca ao longo dela
+  EL('rua','Rua e cerca','estruturas');
   for (let i=0;i<STREET.length-1;i++){
     const [ax,az]=STREET[i],[bx,bz]=STREET[i+1], off=P.barranco.largura+0.6;
     const len=Math.hypot(bx-ax,bz-az), nx=(bz-az)/len, nz=-(bx-ax)/len; // normal para a direita
@@ -377,51 +439,55 @@ function build(){
     const A2=[A[0]+nx*3,A[1]+nz*3], B2=[B[0]+nx*3,B[1]+nz*3];
     const road=seg3(5,0.12,A2[0],H(...A2)+0.03,A2[1],B2[0],H(...B2)+0.03,B2[1],M.road); road.receiveShadow=true; layers.estruturas.add(road);
   }
-  addLabel('Rua (fora da cerca)', 16.5, H(16.5,-8)+0.8, -8);
+  addLabel('Rua (fora da cerca)', 16.5, H(16.5,-8)+0.8, -8); EL();
   // pedra imensa no pé do barranco, onde termina a pracinha
+  EL('pedraImensa','Pedra imensa','estruturas');
   { const p=PEDRA_IMENSA, y=H(p.x,p.z); const rk=new THREE.Mesh(new THREE.DodecahedronGeometry(3,1),M.stone); rk.scale.set(1.0,1.6,1.15); rk.position.copy(v(p.x,y+2.6,p.z)); layers.estruturas.add(shadowy(rk));
-    addLabel('Pedra imensa', p.x, y+8, p.z); }
+    addLabel('Pedra imensa', p.x, y+8, p.z); } EL();
   // pergolado na beira do barranco, olhando para a pracinha
-  { const px=-1.6, pz=15.2, y=H(px,pz), pg=new THREE.Group(); pg.position.copy(v(px,y,pz)); pg.rotation.y=0.12;
-    { const fl=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.2,4.0),M.floor); fl.position.y=0.05; pg.add(fl); }
-    const wall=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.6,4.0),M.block); wall.position.set(-2.3,0.3,0); pg.add(wall);
-    for(const sx of [-1,1]) for(const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.14,2.7,0.14),M.dark); p.position.set(sx*1.9,1.35,sz*1.7); pg.add(p); }
-    for(let i=0;i<8;i++){ const r=new THREE.Mesh(new THREE.BoxGeometry(4.8,0.1,0.12),M.wood); r.position.set(0,2.75,-1.9+i*0.54); pg.add(r); }
-    for(const sz of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.16,4.4),M.wood); r.position.set(sz*1.9,2.66,0); pg.add(r); }
-    layers.estruturas.add(shadowy(pg)); addLabel('Pergolado', px, y+3.6, pz); }
+  // pergolado estreito (~6 × 2 m, proporção 3:1) na beira do barranco; começa na linha do fundo dos banheiros, ~5 m ao lado do salão
+  EL('pergolado','Pergolado','estruturas');
+  { const G=P.galpao, PG=PERGOLADO, z0=G.frenteZ+G.profundidade+G.fundoBanheiros, px=G.cx-G.largura/2-PG.afastamento-PG.largura/2, pz=z0+PG.comprimento/2, y=H(px,pz), pg=new THREE.Group(); pg.position.copy(v(px,y,pz));
+    const w=PG.largura, l=PG.comprimento;
+    { const fl=new THREE.Mesh(new THREE.BoxGeometry(w+0.4,0.2,l+0.4),M.floor); fl.position.y=0.05; pg.add(fl); }
+    const wall=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.6,l),M.block); wall.position.set(-w/2-0.1,0.3,0); pg.add(wall);
+    for(const sx of [-1,1]) for(let k=0;k<3;k++){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.14,2.7,0.14),M.dark); p.position.set(sx*(w/2-0.1),1.35,-l/2+0.15+k*(l-0.3)/2); pg.add(p); }
+    for(let i=0;i<Math.round(l/0.5);i++){ const r=new THREE.Mesh(new THREE.BoxGeometry(w+0.4,0.1,0.12),M.wood); r.position.set(0,2.75,-l/2+0.25+i*0.5); pg.add(r); }
+    for(const sx of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.16,l+0.4),M.wood); r.position.set(sx*(w/2-0.1),2.66,0); pg.add(r); }
+    layers.estruturas.add(shadowy(pg)); addLabel('Pergolado', px, y+3.6, pz); } EL();
   // estacionamento: faixa de cima, atrás do pergolado, na beira do barranco até a divisa com o vizinho
   { const edgeX=(Z)=>{ for(let i=0;i<LEFT_EDGE.length-1;i++){ const [ax,az]=LEFT_EDGE[i],[bx,bz]=LEFT_EDGE[i+1]; if(Z>=az&&Z<=bz) return ax+(bx-ax)*(Z-az)/(bz-az); } return LEFT_EDGE.at(-1)[0]; };
-    const z0=17.8, z1=ESTAC.divisaZ, larg=ESTAC.largura, n=Math.ceil((z1-z0)/0.7), pos=[], idx=[];
+    const z0=P.galpao.frenteZ+P.galpao.profundidade+P.galpao.fundoBanheiros+PERGOLADO.comprimento+0.5, z1=ESTAC.divisaZ, larg=ESTAC.largura, n=Math.ceil((z1-z0)/0.7), pos=[], idx=[];
     for(let i=0;i<=n;i++){ const Z=z0+(z1-z0)*i/n, xa=edgeX(Z)+0.6, xb=xa+larg; const xb2=Math.min(xb,xAt(TOE,Z)-0.3); for(const X of [xa,xb2]) pos.push(X,H(X,Z)+0.05,-Z); if(i<n){ const k=i*2; idx.push(k,k+2,k+1, k+1,k+2,k+3); } }
-    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+    EL('estacionamento','Estacionamento'); const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
     const pk=new THREE.Mesh(g,M.road); pk.receiveShadow=true; layers.estruturas.add(pk);
     // vagas alinhadas na beira do barranco (carro de frente para o barranco)
     for(let Z=z0+1.5; Z<z1-1; Z+=2.6){ if(Z>P.galpao.frenteZ-1 && Z<P.galpao.frenteZ+P.galpao.profundidade+P.galpao.fundoBanheiros+1 && edgeX(Z)+5.6>P.galpao.cx-P.galpao.largura/2) continue;
       const xa=edgeX(Z)+0.6, xe=Math.min(xa+5,xAt(TOE,Z)-0.3); layers.estruturas.add(seg3(0.08,0.02,xa,H(xa,Z)+0.08,Z,xe,H(xe,Z)+0.08,Z,M.dark)); }
-    const zm=(z0+z1)/2+4; addLabel('Estacionamento (visitas, na beira do barranco)', edgeX(zm)+larg/2, H(edgeX(zm)+3,zm)+1.2, zm);
+    const zm=(z0+z1)/2+4; addLabel('Estacionamento (visitas, na beira do barranco)', edgeX(zm)+larg/2, H(edgeX(zm)+3,zm)+1.2, zm); EL('divisa','Divisa com o vizinho');
     // divisa com o vizinho (posição estimada)
     const xd0=edgeX(z1)-1, xd1=STREET.at(-1)[0]+P.barranco.largura+0.6; layers.estruturas.add(shadowy(seg3(0.08,1.4,xd0,H(xd0,z1)+0.7,z1,xd1,H(xd1,z1)+0.7,z1,M.dark)));
-    addLabel('Divisa com o vizinho (estimada)', (xd0+xd1)/2, H((xd0+xd1)/2,z1)+2, z1);
+    addLabel('Divisa com o vizinho (estimada)', (xd0+xd1)/2, H((xd0+xd1)/2,z1)+2, z1); EL('deposito','Depósito');
     const shX=xAt(TOE,z1-3)-1.8; const shed=box(3,2.4,2.5,M.house,shX,H(shX,z1-3)+1.2,z1-3); layers.estruturas.add(shadowy(shed));
-    addLabel('Depósito', shX, H(shX,z1-3)+3.2, z1-3); }
+    addLabel('Depósito', shX, H(shX,z1-3)+3.2, z1-3); EL(); }
   // deck, rampa, portão, calçada
   { const C=P.casa, k=Math.round(C.janelaFotos)===1?1:2, xl=-C.largura*k/3, xr=xl+C.largura;
     const Rr=P.rampa, rx=xr+1.4+Rr.largura/2, z0=0.5, z1=-Rr.comprimento+0.5;
-    layers.estruturas.add(shadowy(seg3(Rr.largura,0.25,rx,0.0,z0,rx,Rr.desnivel,z1,M.road)));
+    EL('rampaCarros','Rampa dos carros'); layers.estruturas.add(shadowy(seg3(Rr.largura,0.25,rx,0.0,z0,rx,Rr.desnivel,z1,M.road)));
     layers.estruturas.add(shadowy(seg3(0.15,1.0,rx-Rr.largura/2-0.08,-0.2,z0,rx-Rr.largura/2-0.08,Rr.desnivel-0.2,z1,M.block)));
-    const walk=box(1.3,0.12,C.fundo,M.block,xr+0.65,0.06,-C.fundo/2); layers.estruturas.add(shadowy(walk));
     addLabel('Rampa dos carros', rx, Rr.desnivel*0.5+1.2, (z0+z1)/2);
-    const gate=box(Rr.largura+0.6,2.0,0.12,M.wood,rx,Rr.desnivel+1.0,z1-0.3); layers.estruturas.add(shadowy(gate));
+    EL('calcada','Calçada em frente à casa'); const walk=box(1.3,0.12,C.fundo,M.block,xr+0.65,0.06,-C.fundo/2); layers.estruturas.add(shadowy(walk)); addLabel('Calçada', xr+0.65, 0.9, -C.fundo*0.7);
+    EL('portao','Portão de madeira'); const gate=box(Rr.largura+0.6,2.0,0.12,M.wood,rx,Rr.desnivel+1.0,z1-0.3); layers.estruturas.add(shadowy(gate));
     addLabel('Portão de madeira', rx, Rr.desnivel+2.6, z1-0.3);
-    const Dk=P.deck, dx=xr-Dk.largura/2-0.2, dz=-C.fundo-0.3-Dk.comprimento/2;
+    EL('deck','Deck de madeira'); const Dk=P.deck, dx=xr-Dk.largura/2-0.2, dz=-C.fundo-2.5-Dk.comprimento/2;
     const deck=box(Dk.largura,Dk.altura,Dk.comprimento,M.wood,dx,Dk.altura/2,dz); layers.estruturas.add(shadowy(deck));
-    addLabel(`Deck ${fmt(Dk.largura*P.escala)} × ${fmt(Dk.comprimento*P.escala)} m`, dx, Dk.altura+1, dz);
+    addLabel(`Deck ${fmt(Dk.largura*P.escala)} × ${fmt(Dk.comprimento*P.escala)} m`, dx, Dk.altura+1, dz); EL();
   }
   // área de baixo: salão em obra (fundação), laguinho, banhado, rio, rampa de pedestres
   { const S=P.salaoObra, y=H(S.cx,S.cz);
-    const slab=box(S.largura,0.5,S.comprimento,M.block,S.cx,y+0.15,S.cz); layers.estruturas.add(shadowy(slab));
+    EL('salaoInferior','Salão inferior (em construção)'); const slab=box(S.largura,0.5,S.comprimento,M.block,S.cx,y+0.15,S.cz); layers.estruturas.add(shadowy(slab));
     addLabel(`Salão inferior (em construção) ${fmt(S.largura*P.escala)} × ${fmt(S.comprimento*P.escala)} m`, S.cx, y+1.6, S.cz);
-    const ly=-P.terreno.quedaEsquerda-0.35, shape=new THREE.Shape(), N=60;
+    EL('laguinho','Laguinho de peixes'); const ly=-P.terreno.quedaEsquerda-0.35, shape=new THREE.Shape(), N=60;
     for(let i=0;i<N;i++){
       const a=i/N*Math.PI*2; let p=null;
       for(let rr=0.1; rr<9; rr+=0.04){ const X=LAKE.x+Math.cos(a)*rr, Z=LAKE.z+Math.sin(a)*rr; if(lakeDist(X,Z)>0){ p=[X,Z]; break; } }
@@ -429,45 +495,45 @@ function build(){
     }
     const lake=new THREE.Mesh(new THREE.ShapeGeometry(shape),M.water); lake.rotation.x=-Math.PI/2; lake.position.y=ly; layers.estruturas.add(lake);
     addLabel('Laguinho de peixes (dois tanques)', LAKE.x, ly+1.5, LAKE.z);
-    const B=BANHADO, ban=box(B.w,0.02,B.d,M.marsh,B.x,H(B.x,B.z)+0.05,B.z); layers.estruturas.add(ban);
+    EL('banhado','Banhado'); const B=BANHADO, ban=box(B.w,0.02,B.d,M.marsh,B.x,H(B.x,B.z)+0.05,B.z); layers.estruturas.add(ban);
     addLabel('Banhado (futuro tanque)', B.x, H(B.x,B.z)+1.2, B.z);
-    const wy=-P.terreno.quedaEsquerda-0.45;
+    EL('rio','Rio'); const wy=-P.terreno.quedaEsquerda-0.45;
     for(let i=0;i<RIVER.length-1;i++){ const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];
       layers.estruturas.add(seg3(2.6,0.02,ax,wy,az,bx,wy,bz,M.water)); }
     addLabel('Rio (divisa)', -33, wy+1.2, 8);
-    const path=[[-9.6,0.5],[-10.4,4],[-11.0,8],[-11.6,12],[-12.4,16],[-13.4,19.6]];
+    EL('rampaPedestres','Rampa de pedestres'); const path=[[-9.6,0.5],[-10.4,4],[-11.0,8],[-11.6,12],[-12.4,16],[-13.4,19.6]];
     for(let i=0;i<path.length-1;i++){ const [ax,az]=path[i],[bx,bz]=path[i+1];
       layers.estruturas.add(shadowy(seg3(1.5,0.14,ax,H(ax,az)+0.1,az,bx,H(bx,bz)+0.1,bz,M.block))); }
     addLabel('Rampa de pedestres', -10.4, H(-10.4,4)+1.4, 4);
     // pracinha de cascalho ao pé da rampa, ao lado do laguinho, terminando na pedra imensa
-    { const p=PRACINHA, y=H(p.x,p.z); const pc=box(p.w,0.08,p.d,M.floor,p.x,y+0.05,p.z,0.25); pc.receiveShadow=true; layers.estruturas.add(pc);
+    EL('pracinha','Pracinha'); { const p=PRACINHA, y=H(p.x,p.z); const pc=box(p.w,0.08,p.d,M.floor,p.x,y+0.05,p.z,0.25); pc.receiveShadow=true; layers.estruturas.add(pc);
       addLabel('Pracinha', p.x, y+1.2, p.z); }
     // pedra-platô, ponte de ferro saindo da rampa e escadinha até o laguinho
-    { const q=PEDRA_PLATO, y=H(q.x,q.z); const rk=new THREE.Mesh(new THREE.SphereGeometry(2.2,20,10),M.stone); rk.scale.set(1.3,0.32,0.9); rk.position.copy(v(q.x,y+0.2,q.z)); layers.estruturas.add(shadowy(rk));
+    EL('pedraPlato','Pedra-platô'); { const q=PEDRA_PLATO, y=H(q.x,q.z); const rk=new THREE.Mesh(new THREE.SphereGeometry(2.2,20,10),M.stone); rk.scale.set(1.3,0.32,0.9); rk.position.copy(v(q.x,y+0.2,q.z)); layers.estruturas.add(shadowy(rk));
       addLabel('Pedra-platô', q.x, y+1.4, q.z);
-      const [rx,rz]=[-11.3,10.0], ry=H(rx,rz)+0.25, by=y+0.85, bx=q.x+1.1, bz=q.z-0.6;
+      EL('ponte','Ponte de ferro'); const [rx,rz]=[-11.3,10.0], ry=H(rx,rz)+0.25, by=y+0.85, bx=q.x+1.1, bz=q.z-0.6;
       layers.estruturas.add(shadowy(seg3(1.0,0.08,rx,ry,rz,bx,by,bz,M.dark)));
       for(const o of [-0.5,0.5]){ const dx=-(bz-rz), dz=(bx-rx), L=Math.hypot(dx,dz); layers.estruturas.add(seg3(0.04,0.04,rx+dx/L*o,ry+0.9,rz+dz/L*o,bx+dx/L*o,by+0.9,bz+dz/L*o,M.dark)); }
       addLabel('Ponte de ferro', (rx+bx)/2, by+1.4, (rz+bz)/2);
-      const s0=[q.x-1.2,q.z+1.4], s1=[-15.2,15.2], n=6, y0=by-0.1, y1=-P.terreno.quedaEsquerda+0.05;
+      EL('escadinha','Escadinha'); const s0=[q.x-1.2,q.z+1.4], s1=[-15.2,15.2], n=6, y0=by-0.1, y1=-P.terreno.quedaEsquerda+0.05;
       for(let i=0;i<n;i++){ const t=(i+0.5)/n, sx=s0[0]+(s1[0]-s0[0])*t, sz=s0[1]+(s1[1]-s0[1])*t, sy=y0+(y1-y0)*t;
         layers.estruturas.add(shadowy(box(1.0,0.2,0.45,M.block,sx,sy,sz,Math.atan2(s1[1]-s0[1],s1[0]-s0[0])+Math.PI/2))); }
-      addLabel('Escadinha', s1[0], y1+1.2, s1[1]);
+      addLabel('Escadinha', s1[0], y1+1.2, s1[1]); EL();
     }
     // árvore grande entre a pedra-platô e a escadinha (medidas a confirmar)
-    { const A=ARVORE, y=H(A.x,A.z), g=new THREE.Group(); g.position.copy(v(A.x,y,A.z));
+    EL('arvoreGrande','Árvore grande','vegetacao'); { const A=ARVORE, y=H(A.x,A.z), g=new THREE.Group(); g.position.copy(v(A.x,y,A.z));
       const tr=new THREE.Mesh(new THREE.CylinderGeometry(A.tronco*0.35,A.tronco*0.6,A.altura*0.65,14),M.trunk); tr.position.y=A.altura*0.325; g.add(tr);
       for(let i=0;i<10;i++){ const a=i/10*Math.PI*2, r=A.tronco*0.55; const rt=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.07,A.altura*0.42,5),M.trunk); rt.position.set(Math.cos(a)*r,A.altura*0.21,Math.sin(a)*r); g.add(rt); }
       for(const [ox,oy,oz,rr] of [[0,0.78,0,1],[0.35,0.7,0.2,0.75],[-0.35,0.72,-0.15,0.8],[0.1,0.9,-0.3,0.7]]){
         const c=new THREE.Mesh(new THREE.IcosahedronGeometry(A.copa*rr,1),M.tree); c.scale.y=0.55; c.position.set(ox*A.copa,A.altura*oy,oz*A.copa); g.add(c); }
-      layers.vegetacao.add(shadowy(g)); addLabel(`Árvore grande (~${fmt(A.altura)} m, a confirmar)`, A.x, y+A.altura+1.5, A.z); }
+      layers.vegetacao.add(shadowy(g)); addLabel(`Árvore grande (~${fmt(A.altura)} m, a confirmar)`, A.x, y+A.altura+1.5, A.z); } EL();
     // muro de blocos em volta do laguinho e divisória com furos
-    { const ly=-P.terreno.quedaEsquerda-0.35, N=40, pts=[];
+    EL('laguinho','Laguinho de peixes'); { const ly=-P.terreno.quedaEsquerda-0.35, N=40, pts=[];
       for(let i=0;i<N;i++){ const a=i/N*Math.PI*2; for(let rr=0.1; rr<10; rr+=0.04){ const X=LAKE.x+Math.cos(a)*rr, Z=LAKE.z+Math.sin(a)*rr; if(lakeDist(X,Z)>0){ pts.push([X,Z]); break; } } }
       for(let i=0;i<pts.length;i++){ const [ax,az]=pts[i],[bx,bz]=pts[(i+1)%pts.length]; layers.estruturas.add(shadowy(seg3(0.2,0.9,ax,ly+0.3,az,bx,ly+0.3,bz,M.block))); }
       const t=0.55, dx=LAKE.tipX-LAKE.x, dz=LAKE.tipZ-LAKE.z, L=Math.hypot(dx,dz), cxl=LAKE.x+dx*t, czl=LAKE.z+dz*t, w=LAKE.r*(1-t*0.85)+0.2;
       layers.estruturas.add(shadowy(seg3(0.22,0.8,cxl-dz/L*w,ly+0.25,czl+dx/L*w,cxl+dz/L*w,ly+0.25,czl-dx/L*w,M.block)));
-    }
+    } EL();
   }
 
   /* casa */
@@ -488,16 +554,19 @@ function build(){
   const split=box(0.08,C.altura,0.12,M.dark,xl+C.largura+0.04,C.altura/2,-C.fundo/2);
   // varanda coberta na frente (lado da rua)
   const vw=2.6, vr=box(vw,0.1,C.fundo+0.6,M.roof,xl+C.largura+vw/2,C.altura-0.15,-C.fundo/2); vr.rotation.z=-0.08;
-  hg.add(main,rf,win1,win2,d1,d2,split,vr);
-  for(let i=0;i<=4;i++){ hg.add(box(0.12,C.altura-0.2,0.12,M.wood,xl+C.largura+vw-0.1,(C.altura-0.2)/2,-0.1-i*(C.fundo-0.2)/4)); }
-  // deck pequeno na porta dos fundos (lado do barranco)
-  hg.add(box(2.6,0.15,3.2,M.wood,xl-1.3,0.25,-C.fundo*0.55));
-  for(const [ox,oz] of [[-2.5,-1.5],[-2.5,1.5]]) hg.add(box(0.12,1.2,0.12,M.wood,xl+ox,-0.35,-C.fundo*0.55+oz));
-  layers.casa.add(shadowy(hg));
-  addLabel('Varanda', xl+C.largura+vw/2, C.altura+0.6, -C.fundo*0.3);
-  addLabel('Deck dos fundos', xl-1.3, 1.4, C.fundo*-0.55);
+  hg.add(main,rf,win1,win2,d1,d2,split);
+  EL('casa','Casa','casa'); layers.casa.add(shadowy(hg));
   addLabel('Casa 1 · Casa 2 (portas para a rua)', xl+C.largura/2, C.altura+2.4, -C.fundo/2);
   addLabel('Janela das fotos',0,2.6,0.1);
+  EL('varanda','Varanda','casa'); layers.casa.add(shadowy(vr));
+  for(let i=0;i<=4;i++){ layers.casa.add(shadowy(box(0.12,C.altura-0.2,0.12,M.wood,xl+C.largura+vw-0.1,(C.altura-0.2)/2,-0.1-i*(C.fundo-0.2)/4))); }
+  addLabel('Varanda', xl+C.largura+vw/2, C.altura+0.6, -C.fundo*0.3);
+  // deck dos fundos: alinhado com a parede das duas janelas, um pouco suspenso sobre o barranco
+  EL('deckFundos','Deck dos fundos','casa');
+  { const dw=3.0, dd=3.2, dy=0.25, cx=xl-dw/2, cz=-dd/2; layers.casa.add(shadowy(box(dw,0.15,dd,M.wood,cx,dy,cz)));
+    for(const [ox,oz] of [[-dw/2+0.1,-dd/2+0.1],[-dw/2+0.1,dd/2-0.1],[0,-dd/2+0.1],[0,dd/2-0.1]]){ const X=cx+ox, Z=cz+oz, gy=H(X,Z), ph=Math.max(0.2,dy-gy); layers.casa.add(shadowy(box(0.12,ph,0.12,M.wood,X,dy-ph/2,Z))); }
+    addLabel('Deck dos fundos', cx, 1.4, cz); }
+  EL();
 
   /* vegetação de referência */
   const rnd=mulberry(7);
@@ -518,8 +587,8 @@ function build(){
   const blob=(X,Z,r,h)=>{ const y=H(X,Z); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.22,h,6),M.trunk); t.position.copy(v(X,y+h/2,Z));
     const c=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M.tree); c.scale.y=0.8; c.position.copy(v(X,y+h+r*0.5,Z)); return [t,c]; };
   const veg=[];
-  veg.push(...palm(3.9,34,10));
-  for(const a of ARAUCARIAS){ veg.push(...arauc(a.x,a.z,a.h,a.dap,a.copa)); }
+  EL('palmeira','Palmeira','vegetacao'); layers.vegetacao.add(...palm(3.9,34,10).map(shadowy)); EL();
+  ARAUCARIAS.forEach((a,i)=>{ EL('araucaria'+(i+1),'Araucária '+(i+1),'vegetacao'); layers.vegetacao.add(...arauc(a.x,a.z,a.h,a.dap,a.copa).map(shadowy)); EL(); });
   addLabel(`Araucárias (~${ARAUCARIAS.length}, ${Math.min(...ARAUCARIAS.map(a=>a.h))}–${Math.max(...ARAUCARIAS.map(a=>a.h))} m, a confirmar)`, 10.5, H(10.5,29)+25, 29);
   const S=P.salaoObra, busy=(X,Z)=> Math.hypot(X-PRACINHA.x,Z-PRACINHA.z)<5 || Math.hypot(X-PEDRA_PLATO.x,Z-PEDRA_PLATO.z)<4 || Math.hypot(X-ARVORE.x,Z-ARVORE.z)<6 || Math.hypot(X-PEDRA_IMENSA.x,Z-PEDRA_IMENSA.z)<5 || Math.abs(X+11)<2.5&&Z>-1&&Z<21 || (X>-24&&X<-7&&Z>7&&Z<30) || (Math.abs(X-S.cx)<S.largura/2+3 && Math.abs(Z-S.cz)<S.comprimento/2+3) || lakeDist(X,Z)<3 ||
     (Math.abs(X-BANHADO.x)<BANHADO.w/2+2 && Math.abs(Z-BANHADO.z)<BANHADO.d/2+2) || Math.abs(signedDist(RIVER,X,Z))<2.5;
@@ -531,7 +600,7 @@ function build(){
     veg.push(...blob(X,Z,2+rnd()*2.5,4+rnd()*6));
   }
   // touceiras de cana na borda
-  for(const [X,Z] of [[-5.5,8.2],[-4.3,8.9],[-3.1,9.8],[-2.6,11.3],[-2.2,12.6]]){
+  for(const [X,Z] of [[-5.5,8.2],[-4.3,8.9],[-3.4,9.8],[-4.1,10.8],[-4.5,12.2]]){
     const c=new THREE.Mesh(new THREE.ConeGeometry(0.55,2.8,7),M.tree); c.position.copy(v(X,H(X,Z)+1.4,Z)); veg.push(c);
   }
   veg.forEach(m=>layers.vegetacao.add(shadowy(m)));
@@ -541,8 +610,10 @@ function build(){
   addLabel('Platô gramado', -0.5, 0.4, 13);
   addLabel(`Barranco ~${fmt(P.terreno.quedaEsquerda*P.escala)} m`, -10, H(-10,2)+1.2, 2);
   addLabel('Área de baixo', -26, H(-26,22)+1, 22);
+  CUR=null; finalizeEls();
   refreshLayerVis();
   ruler.reproject();
+  if(typeof onBuilt==='function') onBuilt();
 }
 function mulberry(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const fmt = n => n.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:2});
@@ -618,16 +689,18 @@ document.getElementById('applyScale').onclick=()=>{
 
 /* ---------- modos ---------- */
 let mode='orbit', rulerOn=false, prevMode='orbit';
-const btn={orbit:mOrbit, walk:mWalk, photo:mPhoto};
+const btn={orbit:mOrbit, walk:mWalk, photo:mPhoto, edit:mEdit};
 const hint=document.getElementById('modeHint'), overlay=document.getElementById('overlay'), opWrap=document.getElementById('opWrap');
 const HINTS={orbit:'Arraste para girar, role ou pince para aproximar, botão direito ou dois dedos para deslocar.',
   walk:'Arraste para olhar. W A S D ou setas para andar, Shift para correr. No celular use as setas na tela.',
-  photo:'Mesma posição e lente da foto. Ajuste a opacidade para comparar a maquete com a foto real.'};
+  photo:'Mesma posição e lente da foto. Ajuste a opacidade para comparar a maquete com a foto real.',
+  edit:'Modo de edição. Navegue como na Órbita; clique num elemento para selecionar ou use a ferramenta Relevo para moldar o chão.'};
 const look={yaw:0,pitch:0};
 function setMode(m){
   if(m==='photo' && mode!=='photo') prevMode=mode;
   mode=m; Object.entries(btn).forEach(([k,b])=>b.setAttribute('aria-pressed',String(k===m)));
-  controls.enabled = (m==='orbit');
+  controls.enabled = (m==='orbit'||m==='edit');
+  editMode(m==='edit');
   overlay.hidden = m!=='photo'; opWrap.hidden = m!=='photo';
   document.body.classList.toggle('walk', m==='walk');
   hint.textContent=HINTS[m];
@@ -635,7 +708,7 @@ function setMode(m){
     const s=P.escala; const p=new THREE.Vector3(1.5*s,0,-3*s);
     camera.position.set(p.x, groundAt(p.x,p.z)+1.6, p.z); look.yaw=0; look.pitch=-0.05; camera.fov=65; camera.updateProjectionMatrix();
   }
-  if(m==='orbit'){ camera.fov=55; camera.updateProjectionMatrix(); if(camera.position.y<4){ camera.position.set(-42*P.escala,40*P.escala,-52*P.escala); } controls.target.set(-8*P.escala,-4*P.escala,-4*P.escala); }
+  if(m==='orbit'||(m==='edit'&&camera.position.y<4)){ camera.fov=55; camera.updateProjectionMatrix(); if(camera.position.y<4){ camera.position.set(-42*P.escala,40*P.escala,-52*P.escala); } controls.target.set(-8*P.escala,-4*P.escala,-4*P.escala); }
   if(m==='photo') setPhotoCam();
   resize();
 }
@@ -645,7 +718,7 @@ function setPhotoCam(){
   camera.rotation.set(THREE.MathUtils.degToRad(c.inclinacao),0,0,'YXZ');
   camera.fov=c.fovVertical; camera.updateProjectionMatrix();
 }
-mOrbit.onclick=()=>setMode('orbit'); mWalk.onclick=()=>setMode('walk');
+mOrbit.onclick=()=>setMode('orbit'); mWalk.onclick=()=>setMode('walk'); mEdit.onclick=()=>setMode(mode==='edit'?'orbit':'edit');
 mPhoto.onclick=()=>setMode(mode==='photo'?prevMode:'photo');
 mRuler.onclick=()=>{ rulerOn=!rulerOn; mRuler.setAttribute('aria-pressed',String(rulerOn)); renderer.domElement.style.cursor=rulerOn?'crosshair':''; };
 document.getElementById('opacity').oninput=e=>overlay.style.opacity=e.target.value;
@@ -656,7 +729,7 @@ function groundAt(x,z){ // coords de mundo escaladas
 
 /* entrada */
 const keys=new Set();
-addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; keys.add(e.code); });
+addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; keys.add(e.code); if(mode==='edit') editKey(e); });
 addEventListener('keyup',e=>keys.delete(e.code));
 document.querySelectorAll('#pad button').forEach(b=>{
   b.addEventListener('pointerdown',e=>{ e.preventDefault(); keys.add(b.dataset.k); });
@@ -664,13 +737,15 @@ document.querySelectorAll('#pad button').forEach(b=>{
 });
 let down=null;
 const cv=renderer.domElement;
-cv.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,id:e.pointerId}; if(mode==='walk') cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,id:e.pointerId}; if(mode==='walk') cv.setPointerCapture(e.pointerId); if(mode==='edit') editDown(e); });
+cv.addEventListener('pointermove',e=>{ if(mode==='edit') editMove(e); });
 cv.addEventListener('pointermove',e=>{
   if(!down || mode!=='walk') return;
   look.yaw -= (e.clientX-down.lx)*0.004; look.pitch -= (e.clientY-down.ly)*0.004;
   look.pitch=Math.max(-1.4,Math.min(1.4,look.pitch)); down.lx=e.clientX; down.ly=e.clientY;
 });
 cv.addEventListener('pointerup',e=>{
+  if(mode==='edit') editUp(e, down && Math.hypot(e.clientX-down.x,e.clientY-down.y)<6);
   if(down && rulerOn && Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){
     const r=cv.getBoundingClientRect(), vp=viewRect();
     ndc.set(((e.clientX-r.left-vp.x)/vp.w)*2-1, -((e.clientY-r.top-vp.y)/vp.h)*2+1);
@@ -699,7 +774,7 @@ addEventListener('resize',resize);
 const clock=new THREE.Clock(), tmp=new THREE.Vector3();
 function frame(){
   const dt=Math.min(0.05,clock.getDelta());
-  if(mode==='orbit') controls.update();
+  if(mode==='orbit'||mode==='edit') controls.update();
   if(mode==='walk'){
     const sp=(keys.has('ShiftLeft')||keys.has('ShiftRight')?7:3)*dt;
     const fw=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
@@ -713,9 +788,9 @@ function frame(){
   renderer.setScissorTest(true); renderer.setViewport(r.x,stage.clientHeight-r.y-r.h,r.w,r.h); renderer.setScissor(r.x,stage.clientHeight-r.y-r.h,r.w,r.h);
   renderer.render(scene,camera);
   // rótulos
-  const all=[...labels.map(l=>({el:l.el,p:l.pos,show:vis.rotulos})), ...ruler.items.map(it=>({el:it.el,p:it.a.clone().add(it.b).multiplyScalar(0.5),show:true}))];
-  for(const {el,p,show} of all){
-    tmp.copy(p).applyMatrix4(world.matrixWorld).project(camera);
+  const all=[...labels.map(l=>({el:l.el,p:l.pos,m:l.owner?l.owner.matrixWorld:world.matrixWorld,show:vis.rotulos&&(!l.owner||(l.owner.visible&&l.owner.parent.visible))})), ...ruler.items.map(it=>({el:it.el,p:it.a.clone().add(it.b).multiplyScalar(0.5),m:world.matrixWorld,show:true}))];
+  for(const {el,p,m,show} of all){
+    tmp.copy(p).applyMatrix4(m).project(camera);
     const on = show && tmp.z<1 && Math.abs(tmp.x)<1.05 && Math.abs(tmp.y)<1.05;
     el.hidden=!on; if(on){ el.style.left=(r.x+(tmp.x+1)/2*r.w)+'px'; el.style.top=(r.y+(1-tmp.y)/2*r.h-6)+'px'; }
   }
@@ -729,7 +804,99 @@ document.getElementById('copyJson').onclick=()=>{
   const txt=JSON.stringify(P,null,1), ta=document.getElementById('jsonOut'); ta.value=txt;
   navigator.clipboard?.writeText(txt).then(()=>{ document.getElementById('copyJson').textContent='Copiado'; }).catch(()=>{ ta.hidden=false; ta.select(); });
 };
-document.getElementById('resetParams').onclick=()=>{ P=structuredClone(DEFAULTS); save(); ruler.clear(); build(); buildPanel(); if(mode==='photo') setPhotoCam(); };
+document.getElementById('resetParams').onclick=()=>{ P=structuredClone(DEFAULTS); save(); loadRG(); deselect(); ruler.clear(); build(); buildPanel(); if(mode==='photo') setPhotoCam(); };
 
+/* ---------- edição: selecionar, mover, girar, esticar; moldar o relevo ---------- */
+const tc=new TransformControls(camera, renderer.domElement); tc.setSize(0.9);
+const tcHelper=tc.getHelper(); scene.add(tcHelper); tcHelper.visible=false; tc.enabled=false;
+tc.setTranslationSnap(0.05); tc.setRotationSnap(THREE.MathUtils.degToRad(1));
+let selected=null, selId=null, tool='move', brush='up', sculpting=false, lastSculpt=0, undo=[];
+const selBoxHelper=new THREE.BoxHelper(new THREE.Object3D(),'#b4532a'); selBoxHelper.visible=false; scene.add(selBoxHelper);
+const cursorRing=new THREE.Mesh(new THREE.RingGeometry(0.94,1,64),new THREE.MeshBasicMaterial({color:'#b4532a',depthTest:false,transparent:true,opacity:.9})); cursorRing.rotation.x=-Math.PI/2; cursorRing.renderOrder=11; cursorRing.visible=false; scene.add(cursorRing);
+const $=id=>document.getElementById(id), editInfo=$('editInfo');
+const snapshot=()=>JSON.stringify({e:P.edicoes||{},r:P.relevo||{}});
+function pushUndo(){ undo.push(snapshot()); if(undo.length>60) undo.shift(); }
+function editMode(on){
+  $('editSec').hidden=!on; tc.enabled=on&&tool!=='terrain'; tcHelper.visible=on&&!!selected&&tool!=='terrain';
+  cursorRing.visible=false; if(!on){ deselect(); }
+}
+function setTool(t){ tool=t; for(const [k,id] of [['move','tMove'],['rotate','tRot'],['scale','tScale'],['terrain','tTerrain']]) $(id).setAttribute('aria-pressed',String(k===t));
+  if(t!=='terrain'){ tc.setMode(t==='move'?'translate':t); tc.showY = t!=='rotate' || true; tc.showX = t!=='rotate'; tc.showZ = t!=='rotate'; }
+  $('terrainBox').hidden=t!=='terrain'; tc.enabled=mode==='edit'&&t!=='terrain'; tcHelper.visible=mode==='edit'&&!!selected&&t!=='terrain';
+  cursorRing.visible=false;
+  $('editHint').textContent = t==='terrain' ? 'Arraste sobre o chão para moldar. Para girar a câmera nesta ferramenta, use o botão direito ou dois dedos.' : 'Clique num elemento para selecionar. Arraste as alças para mover, girar ou esticar. Clique no vazio para soltar.';
+}
+$('tMove').onclick=()=>setTool('move'); $('tRot').onclick=()=>setTool('rotate'); $('tScale').onclick=()=>setTool('scale'); $('tTerrain').onclick=()=>{ setTool('terrain'); deselect(); };
+for(const [b,id] of [['up','bUp'],['down','bDown'],['flat','bFlat']]) $(id).onclick=()=>{ brush=b; for(const [k,i2] of [['up','bUp'],['down','bDown'],['flat','bFlat']]) $(i2).setAttribute('aria-pressed',String(k===b)); };
+$('bRad').oninput=e=>$('bRadV').textContent=e.target.value+' m';
+
+function select(g){
+  selected=g; selId=g?g.userData.elId:null;
+  if(!g){ tc.detach(); tcHelper.visible=false; selBoxHelper.visible=false; $('selBox').hidden=true; return; }
+  tc.attach(g); tcHelper.visible=tool!=='terrain'; selBoxHelper.setFromObject(g); selBoxHelper.visible=true;
+  $('selBox').hidden=false; $('selName').textContent=g.userData.nome; $('bHide').textContent=g.visible?'Remover':'Restaurar'; fillFields();
+}
+function deselect(){ select(null); }
+const FIELDS=[['px','Posição lado X (m)'],['pz','Posição frente Z (m)'],['py','Elevação (m)'],['ry','Giro (graus)'],['sx','Largura (×)'],['sy','Altura (×)'],['sz','Comprimento (×)']];
+function fillFields(){
+  const host=$('selFields'); host.innerHTML=''; const g=selected; if(!g) return;
+  const val={px:g.position.x, pz:-g.position.z, py:g.position.y-g.userData.base.y, ry:THREE.MathUtils.radToDeg(g.rotation.y), sx:g.scale.x, sy:g.scale.y, sz:g.scale.z};
+  for(const [k,label] of FIELDS){ const id='sf-'+k, lab=document.createElement('label'); lab.htmlFor=id; lab.textContent=label;
+    const inp=document.createElement('input'); inp.type='number'; inp.id=id; inp.step=k==='ry'?'1':(k[0]==='s'?'0.05':'0.1'); inp.value=(Math.round(val[k]*100)/100);
+    inp.onchange=()=>{ const n=parseFloat(inp.value); if(!isFinite(n)) return; pushUndo();
+      if(k==='px') g.position.x=n; if(k==='pz') g.position.z=-n; if(k==='py') g.position.y=g.userData.base.y+n; if(k==='ry') g.rotation.y=THREE.MathUtils.degToRad(n);
+      if(k==='sx') g.scale.x=Math.max(0.05,n); if(k==='sy') g.scale.y=Math.max(0.05,n); if(k==='sz') g.scale.z=Math.max(0.05,n);
+      readEdit(g); save(); selBoxHelper.setFromObject(g); };
+    host.append(lab,inp); }
+}
+tc.addEventListener('dragging-changed',e=>{ controls.enabled=!e.value; if(e.value) pushUndo(); else { readEdit(selected); save(); fillFields(); } });
+tc.addEventListener('objectChange',()=>{ if(selected){ readEdit(selected); selBoxHelper.setFromObject(selected); } });
+$('bGround').onclick=()=>{ const g=selected; if(!g) return; pushUndo(); const bb=new THREE.Box3().setFromObject(g); const s=P.escala; const c=bb.getCenter(new THREE.Vector3());
+  const gy=H(c.x/s,-c.z/s); g.position.y += gy - bb.min.y/s; readEdit(g); save(); select(g); };
+$('bResetEl').onclick=()=>{ const g=selected; if(!g) return; pushUndo(); delete P.edicoes[g.userData.elId]; applyEdit(g); save(); select(g); };
+$('bHide').onclick=()=>{ const g=selected; if(!g) return; pushUndo(); readEdit(g); const E=P.edicoes[g.userData.elId]; if(g.visible) E.oculto=true; else delete E.oculto; applyEdit(g); save(); select(g.visible?g:null); };
+$('bShowAll').onclick=()=>{ pushUndo(); for(const E of Object.values(P.edicoes||{})) delete E.oculto; for(const g of Object.values(ELS)) applyEdit(g); save(); };
+$('bClearEdits').onclick=()=>{ pushUndo(); P.edicoes={}; P.relevo={}; loadRG(); save(); deselect(); build(); editInfo.textContent='Edições apagadas. Use Desfazer para voltar.'; };
+$('bUndo').onclick=()=>{ const u=undo.pop(); if(!u){ editInfo.textContent='Nada para desfazer.'; return; } const o=JSON.parse(u); const id=selId; P.edicoes=o.e; P.relevo=o.r; loadRG(); save(); build(); if(id&&ELS[id]) select(ELS[id]); editInfo.textContent=''; };
+function onBuilt(){ if(selId && ELS[selId] && mode==='edit') select(ELS[selId]); else if(selected) deselect(); }
+function editKey(e){ if(e.code==='Escape') deselect(); if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){ e.preventDefault(); $('bUndo').click(); }
+  if(e.code==='Delete'||e.code==='Backspace'){ if(selected&&selected.visible) $('bHide').click(); } }
+function pickNdc(e){ const r=cv.getBoundingClientRect(), vp=viewRect(); ndc.set(((e.clientX-r.left-vp.x)/vp.w)*2-1, -((e.clientY-r.top-vp.y)/vp.h)*2+1); ray.setFromCamera(ndc,camera); }
+function hitTerrain(e){ pickNdc(e); const h=ray.intersectObject(layers.terreno.children.find(o=>o.name==='terreno'),false)[0]; return h?h.point:null; }
+function editUp(e,click){
+  if(sculpting){ sculpting=false; controls.enabled=true; storeRG(); save(); const id=selId; build(); editInfo.textContent='Relevo ajustado.'; return; }
+  if(!click || tool==='terrain' || tc.dragging) return;
+  if(rulerOn) return;
+  pickNdc(e);
+  const hits=ray.intersectObjects([layers.estruturas,layers.casa,layers.vegetacao].filter(g=>g.visible),true);
+  for(const h of hits){ let o=h.object; while(o && !o.userData?.elId) o=o.parent; if(o && o.visible){ select(o); return; } }
+  deselect();
+}
+function editDown(e){
+  if(tool!=='terrain' || e.button!==0) return;
+  const p=hitTerrain(e); if(!p) return;
+  pushUndo(); sculpting=true; controls.enabled=false; cv.setPointerCapture(e.pointerId);
+  const s=P.escala; sculptTarget=H(p.x/s,-p.z/s); sculptAt(p);
+}
+let sculptTarget=0;
+function editMove(e){
+  if(tool!=='terrain') return;
+  const p=hitTerrain(e); const s=P.escala;
+  if(p){ const r=parseFloat($('bRad').value); cursorRing.visible=true; cursorRing.position.set(p.x,p.y+0.08*s,p.z); cursorRing.scale.setScalar(r*s); } else cursorRing.visible=false;
+  if(sculpting && p && performance.now()-lastSculpt>40) sculptAt(p);
+}
+function sculptAt(p){
+  lastSculpt=performance.now(); const s=P.escala, X=p.x/s, Z=-p.z/s, r=parseFloat($('bRad').value), k=parseFloat($('bStr').value);
+  for(let j=Math.floor(Z-r-RZ0); j<=Math.ceil(Z+r-RZ0); j++) for(let i=Math.floor(X-r-RX0); i<=Math.ceil(X+r-RX0); i++){
+    if(i<0||j<0||i>=RNX||j>=RNZ) continue; const cx=RX0+i, cz=RZ0+j, d=Math.hypot(cx-X,cz-Z); if(d>r) continue;
+    const w=(1-(d/r)**2)**2, idx=j*RNX+i;
+    if(brush==='up') RG[idx]+=k*w; else if(brush==='down') RG[idx]-=k*w; else RG[idx]+=(sculptTarget-H(cx,cz))*w*Math.min(1,k*3);
+  }
+  const t=layers.terreno.children.find(o=>o.name==='terreno'), pos=t.geometry.attributes.position;
+  for(let n=0;n<pos.count;n++){ const vx=pos.getX(n), vz=-pos.getZ(n); if(Math.abs(vx-X)>r+1.2||Math.abs(vz-Z)>r+1.2) continue; pos.setY(n,H(vx,vz)); }
+  pos.needsUpdate=true; t.geometry.computeVertexNormals();
+}
+
+loadRG(); setTool("move"); window.__maquete={get P(){return P;}, ELS};
 build(); buildPanel(); resize(); frame();
 </script>
